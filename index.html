@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nexo BI · Dashboards RopaV</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="integrations.css"><link rel="stylesheet" href="chat.css">
+</head>
+<body>
+  <aside>
+    <div class="brand"><span>N</span><div><b>Nexo BI</b><small>Inteligencia transaccional</small></div></div>
+    <nav id="nav">
+      <button class="active" data-view="resumen">01&nbsp; Resumen ejecutivo</button>
+      <button data-view="tendencia">02&nbsp; Evolución de ventas</button>
+      <button data-view="producto">03&nbsp; Rendimiento por producto</button>
+      <button data-view="categoria">04&nbsp; Mezcla de categorías</button>
+      <button data-view="cliente">05&nbsp; Clientes y segmentos</button>
+      <button data-view="canal">06&nbsp; Canales de venta</button>
+      <button data-view="inventario">07&nbsp; Inventario y stock</button>
+      <button data-view="entrega">08&nbsp; Estado de entregas</button>
+      <div class="nav-label">HERRAMIENTAS BI</div>
+      <button class="tool powerbi" data-view="powerbi">Power BI</button>
+      <button class="tool tableau" data-view="tableau">Tableau <small>Próximamente</small></button>
+      <button class="tool mcp" data-view="adaptable">IA + MCP <small id="aiNavStatus">Configurar</small></button>
+    </nav>
+    <div class="mcp-status"><i></i><div><b>PostgreSQL conectado</b><small>RopaV · datos reales</small></div></div>
+  </aside>
+  <main>
+    <header><div><p class="eyebrow">CENTRO DE CONTROL</p><h1 id="viewTitle">Resumen ejecutivo</h1><p id="viewSubtitle">Datos reales de PostgreSQL · RopaV</p></div><button id="newSale" class="primary">＋ Registrar venta</button></header>
+    <section class="filters">
+      <label>Desde<input id="desde" type="date"></label><label>Hasta<input id="hasta" type="date"></label>
+      <label>Provincia<select id="filterRegion"><option>Todos</option></select></label><label>Canal<select id="filterChannel"><option>Todos</option></select></label>
+      <button id="clearFilters">Limpiar filtros</button>
+    </section>
+    <section id="powerbiView" class="integration-view hidden">
+      <article class="integration-hero"><div><small>POWER BI · DIRECTQUERY</small><h2>Reporte empresarial conectado</h2><p>Las ventas se sincronizan automáticamente con el esquema dimensional <b>dw</b> que utiliza Power BI.</p></div><button id="syncPowerBI" class="primary">↻ Sincronizar ahora</button></article>
+      <div class="integration-status"><article><small>ESTADO DEL DATA WAREHOUSE</small><strong id="dwFacts">—</strong><span>líneas disponibles para análisis</span></article><article><small>VENTAS SINCRONIZADAS</small><strong id="dwSales">—</strong><span id="dwDate">Consultando…</span></article><article><small>MODO RECOMENDADO</small><strong>DirectQuery</strong><span>Actualización automática</span></article></div>
+      <article class="report-card"><div class="card-head"><div><small>REPORTE POWER BI SERVICE</small><h2>Dashboard embebido</h2></div><a id="openPowerBI" target="_blank" rel="noopener">Abrir en Power BI ↗</a></div><iframe id="powerBIFrame" title="Reporte de Power BI" allowfullscreen></iframe><div id="powerBIEmpty" class="empty-report hidden"><h2>Configura el reporte de Power BI</h2><p>Define <code>POWER_BI_EMBED_URL</code> con el enlace seguro del reporte.</p></div></article>
+    </section>
+    <section id="tableauView" class="integration-view hidden"><article class="coming-soon"><span>T</span><small>SIGUIENTE FASE</small><h2>Integración con Tableau</h2><p>La arquitectura ya separa las tres herramientas. Tableau se conectará al mismo modelo analítico en una fase posterior.</p></article></section>
+    <section id="kpis" class="kpis"></section>
+    <section id="standardView" class="grid">
+      <article class="chart-card wide"><div class="card-head"><div><small id="chartKicker">COMPORTAMIENTO</small><h2 id="chartTitle">Ingresos y utilidad por mes</h2></div><div class="legend"><i></i> Ingresos <i></i> Utilidad</div></div><canvas id="mainChart"></canvas></article>
+      <article class="chart-card"><div class="card-head"><div><small>DISTRIBUCIÓN</small><h2 id="sideTitle">Participación por canal</h2></div></div><div id="ranking"></div></article>
+      <article class="table-card full"><div class="card-head"><div><small>ACTIVIDAD RECIENTE</small><h2>Últimas transacciones</h2></div><span id="rowCount"></span></div><div class="table-wrap"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Provincia</th><th>Canal</th><th>Cliente</th><th>Unidades</th><th>Total</th><th></th></tr></thead><tbody id="salesBody"></tbody></table></div></article>
+    </section>
+    <section id="adaptiveView" class="adaptive-view hidden">
+      <article class="prompt-card"><span class="spark">✦</span><div><small>OPENAI + MODEL CONTEXT PROTOCOL</small><h2>Conversa con los datos de RopaV</h2><p>La IA descubre herramientas MCP, consulta PostgreSQL y explica los resultados en lenguaje natural.</p></div><div class="prompt-row"><input id="question" placeholder="Ej: ¿Qué región genera más ingresos?"><button id="ask" class="primary">Enviar</button></div><div class="chips"><button>¿Cuál es el producto líder?</button><button>Compara los canales de venta</button><button>¿Qué productos tienen alerta de stock?</button></div></article>
+      <article id="answer" class="answer-card chat-card"><div class="chat-empty"><span>✦</span><h2>Nexo BI está listo</h2><p>Pregunta sobre ventas, clientes, inventario, productos, canales o entregas.</p></div></article>
+    </section>
+  </main>
+  <dialog id="saleDialog"><form id="saleForm"><div class="modal-head"><div><small>NUEVA TRANSACCIÓN</small><h2>Registrar venta</h2></div><button type="button" id="closeDialog">×</button></div><div class="form-grid">
+    <label>Fecha<input name="fecha" type="date" required></label><label>Producto / SKU<select name="id_variante" required></select></label>
+    <label>Cliente<select name="id_cliente" required></select></label><label>Canal<select name="id_canal" required></select></label>
+    <label>Administrador<select name="id_admin" required></select></label><label>Método de pago<select name="id_metodo_pago" required></select></label>
+    <label>Cantidad<input name="cantidad" type="number" min="1" value="1" required></label><label>Precio unitario<input name="precio" type="number" min="0" step=".01" required></label>
+    <label><span>Personalización</span><select name="es_personalizado"><option value="">No</option><option value="true">Sí</option></select></label>
+  </div><div class="modal-actions"><button type="button" id="cancelDialog">Cancelar</button><button class="primary" type="submit">Guardar y actualizar</button></div></form></dialog>
+  <div id="toast"></div><script src="app.js"></script>
+</body></html>

@@ -1,0 +1,31 @@
+services:
+  db:
+    image: postgres:18
+    ports: ["5433:5432"]
+    environment:
+      POSTGRES_DB: RopaV
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-prototipo_local}
+    volumes:
+      - ropa_data:/var/lib/postgresql
+      - ./RopaVacanaV2.sql:/backup/RopaVacanaV2.sql:ro
+      - ./docker/init-db.sh:/docker-entrypoint-initdb.d/10-restore.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d RopaV"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  app:
+    build: .
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:-prototipo_local}@db:5432/RopaV
+      POWER_BI_EMBED_URL: ${POWER_BI_EMBED_URL:-https://app.powerbi.com/reportEmbed?reportId=7602737b-4a3d-4489-b108-ac24ef5ebc8a&autoAuth=true&ctid=edd334f8-81c6-4062-ad3a-87668a1e074e}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5-mini}
+    ports: ["8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+    restart: unless-stopped
+volumes:
+  ropa_data:

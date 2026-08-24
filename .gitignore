@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.pyc
+negocio.db
+.idea/
+*.log
+PROGRAMA EMPRESARIAL.zip
+pbix/RopaVacana_App.pbix.zip
+pbix/RopaVacana_App.pbix/
+.DS_Store
+Thumbs.db
