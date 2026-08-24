@@ -35,7 +35,19 @@
       <div class="integration-status"><article><small>ESTADO DEL DATA WAREHOUSE</small><strong id="dwFacts">—</strong><span>líneas disponibles para análisis</span></article><article><small>VENTAS SINCRONIZADAS</small><strong id="dwSales">—</strong><span id="dwDate">Consultando…</span></article><article><small>MODO RECOMENDADO</small><strong>DirectQuery</strong><span>Actualización automática</span></article></div>
       <article class="report-card"><div class="card-head"><div><small>REPORTE POWER BI SERVICE</small><h2>Dashboard embebido</h2></div><a id="openPowerBI" target="_blank" rel="noopener">Abrir en Power BI ↗</a></div><iframe id="powerBIFrame" title="Reporte de Power BI" allowfullscreen></iframe><div id="powerBIEmpty" class="empty-report hidden"><h2>Configura el reporte de Power BI</h2><p>Define <code>POWER_BI_EMBED_URL</code> con el enlace seguro del reporte.</p></div></article>
     </section>
-    <section id="tableauView" class="integration-view hidden"><article class="coming-soon"><span>T</span><small>SIGUIENTE FASE</small><h2>Integración con Tableau</h2><p>La arquitectura ya separa las tres herramientas. Tableau se conectará al mismo modelo analítico en una fase posterior.</p></article></section>
+    <section id="tableauView" class="integration-view hidden">
+      <article class="integration-hero"><div><small>TABLEAU · CONEXIÓN EN VIVO</small><h2>Objetivos analíticos conectados a PostgreSQL</h2><p>Cada hoja de Tableau consulta el esquema <b>public</b> en vivo: una venta nueva se refleja sin pasos de sincronización adicionales.</p></div><a id="openTableau" class="primary" target="_blank" rel="noopener">Abrir en Tableau ↗</a></article>
+      <div class="integration-status"><article><small>OBJETIVOS DEFINIDOS</small><strong>7</strong><span>uno por hoja del tablero</span></article><article><small>OBJETIVOS PUBLICADOS</small><strong id="tableauReady">1</strong><span>distribución geográfica por provincia</span></article><article><small>MODO RECOMENDADO</small><strong>Conexión en vivo</strong><span>PostgreSQL · puerto 5433</span></article></div>
+      <article class="report-card"><div class="card-head"><div><small>REPORTE TABLEAU PUBLIC</small><h2>Distribución geográfica de ventas por provincia</h2></div></div><iframe id="tableauFrame" title="Reporte de Tableau" allowfullscreen></iframe><div id="tableauEmpty" class="empty-report hidden"><h2>Configura el reporte de Tableau</h2><p>Define <code>TABLEAU_EMBED_URL</code> con el enlace público del dashboard.</p></div></article>
+      <article class="report-card"><div class="card-head"><div><small>SIGUIENTE ITERACIÓN</small><h2>Objetivos pendientes de publicar</h2></div></div><ul class="tableau-pending">
+        <li>Tendencia de ventas en el tiempo</li>
+        <li>Desempeño de ventas por canal</li>
+        <li>Categorías y productos con mayor y menor rotación</li>
+        <li>Segmentación de clientes por frecuencia, recencia y valor</li>
+        <li>Nivel de inventario y riesgo de quiebre de stock</li>
+        <li>Cumplimiento de entregas</li>
+      </ul></article>
+    </section>
     <section id="kpis" class="kpis"></section>
     <section id="standardView" class="grid">
       <article class="chart-card wide"><div class="card-head"><div><small id="chartKicker">COMPORTAMIENTO</small><h2 id="chartTitle">Ingresos y utilidad por mes</h2></div><div class="legend"><i></i> Ingresos <i></i> Utilidad</div></div><canvas id="mainChart"></canvas></article>

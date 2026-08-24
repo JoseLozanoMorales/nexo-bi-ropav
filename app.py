@@ -15,6 +15,7 @@ from ai_chat import MODEL as OPENAI_MODEL, ask as ask_ai
 
 ROOT = Path(__file__).parent
 POWER_BI_EMBED_URL = os.getenv("POWER_BI_EMBED_URL", "https://app.powerbi.com/reportEmbed?reportId=7602737b-4a3d-4489-b108-ac24ef5ebc8a&autoAuth=true&ctid=edd334f8-81c6-4062-ad3a-87668a1e074e")
+TABLEAU_EMBED_URL = os.getenv("TABLEAU_EMBED_URL", "")
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -36,7 +37,7 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/integraciones":
             return self.send_json({"powerbi": {"embed_url": POWER_BI_EMBED_URL, "dw": dw_status()},
                                    "mcp": {"activo": True, "ia_configurada": bool(os.getenv("OPENAI_API_KEY")), "modelo": OPENAI_MODEL},
-                                   "tableau": {"activo": False}})
+                                   "tableau": {"activo": bool(TABLEAU_EMBED_URL), "embed_url": TABLEAU_EMBED_URL}})
         if parsed.path == "/api/chat/status":
             return self.send_json({"ok": True, "ia_configurada": bool(os.getenv("OPENAI_API_KEY")),
                                    "modelo": OPENAI_MODEL, "mcp": True})
