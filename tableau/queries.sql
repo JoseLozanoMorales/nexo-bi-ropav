@@ -69,3 +69,21 @@ ORDER BY margen_stock ASC;
 SELECT e.tipo_entrega, e.estado_entrega, z.nombre AS zona, COUNT(*) AS num_entregas
 FROM public.entregas e JOIN public.zona z ON z.id_zona = e.id_zona
 GROUP BY e.tipo_entrega, e.estado_entrega, z.nombre ORDER BY zona, e.tipo_entrega;
+
+-- =====================================================================
+-- Objetivo 8: Resumen ejecutivo (KPIs globales)
+-- Cubre el objetivo 1 del README principal (ingresos, utilidad, margen,
+-- transacciones, unidades, clientes). Misma fórmula de utilidad/margen
+-- que usa la app en db.py, para que los números coincidan con el resto
+-- del panel. Devuelve una sola fila: en Tableau se usa como tarjetas KPI
+-- (Texto grande / "Big Number"), una por medida.
+-- =====================================================================
+SELECT COUNT(DISTINCT v.id_venta) AS transacciones, COUNT(DISTINCT v.id_cliente) AS clientes,
+SUM(dv.cantidad) AS unidades_vendidas, SUM(dv.subtotal) AS ingresos_totales,
+SUM(dv.cantidad * (dv.precio_unitario - COALESCE(vp.precio_compra_override, p.precio_compra)))
+AS utilidad_total, ROUND(SUM(dv.cantidad * (dv.precio_unitario -
+COALESCE(vp.precio_compra_override, p.precio_compra))) / NULLIF(SUM(dv.subtotal), 0) * 100, 2)
+AS margen_pct FROM public.ventas v JOIN public.detalle_ventas dv ON dv.id_venta = v.id_venta
+JOIN public.variantes_producto vp ON vp.id_variante = dv.id_variante
+JOIN public.productos p ON p.id_producto = vp.id_producto
+WHERE v.estado_venta = 'Completada';

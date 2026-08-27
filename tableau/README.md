@@ -33,9 +33,16 @@ infraestructura: `compose.yaml` ya expone el puerto de Postgres al host (`5433:5
 | 5 | Segmentación de clientes por frecuencia/recencia/valor | Objetivo 5 | Próxima iteración |
 | 6 | Nivel de inventario y riesgo de quiebre de stock | Objetivo 6 | Próxima iteración |
 | 7 | Cumplimiento de entregas | Objetivo 7 | Próxima iteración |
+| 8 | Resumen ejecutivo (KPIs globales: ingresos, utilidad, margen, transacciones, unidades, clientes) | Objetivo 8 | Próxima iteración |
 
 Para el avance de hoy se priorizó el **objetivo 4** (mapa de provincia) por ser el
 punto fuerte de Tableau frente a los gráficos de barras estándar del resto del panel.
+
+El **objetivo 8** cubre el objetivo 1 del `README.md` principal (resumen de ingresos,
+utilidad, margen, transacciones, unidades y clientes), que no tenía una hoja propia
+en la tabla original de Tableau. Se recomienda armarlo como una hoja de tarjetas KPI
+("Texto grande" / Big Number en Tableau), una tarjeta por medida, en vez de un gráfico
+de barras — es la hoja de portada del dashboard.
 
 ## Publicar y embeber en Nexo BI
 
