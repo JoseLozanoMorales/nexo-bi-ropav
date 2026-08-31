@@ -1,1 +1,31 @@
 .chat-card{min-height:330px;max-height:520px;overflow-y:auto;background:#f7fafc;padding:22px}.chat-empty{text-align:center;padding:55px 20px}.chat-empty>span{display:grid;place-items:center;margin:0 auto 12px;width:42px;height:42px;border-radius:12px;background:#dff6f3;color:#0b9185;font-size:20px}.chat-message{display:flex;margin:12px 0}.chat-message.user{justify-content:flex-end}.chat-bubble{max-width:min(720px,85%);padding:13px 16px;border-radius:14px;white-space:pre-wrap;line-height:1.55}.chat-message.user .chat-bubble{background:#173a4b;color:#fff;border-bottom-right-radius:4px}.chat-message.assistant .chat-bubble{background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px}.chat-meta{display:block;color:var(--muted);font-size:10px;margin-top:8px}.chat-loading{display:inline-flex;gap:5px;padding:16px}.chat-loading i{width:7px;height:7px;border-radius:50%;background:var(--teal);animation:pulse 1s infinite}.chat-loading i:nth-child(2){animation-delay:.15s}.chat-loading i:nth-child(3){animation-delay:.3s}@keyframes pulse{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-4px)}}#ask:disabled{opacity:.6;cursor:wait}.tool small#aiNavStatus.ready{color:#47d5a2}.tool small#aiNavStatus.off{color:#eeaa79}
+
+.chat-workspace{display:grid;grid-template-columns:220px 1fr;gap:14px;margin-top:18px}.chat-workspace>.chat-card{margin-top:0}.chat-history{position:static;width:auto;inset:auto;background:#fff;color:var(--ink);padding:12px;border:1px solid var(--line);border-radius:10px;min-height:330px;max-height:520px;overflow:auto}.history-head{display:flex;justify-content:space-between;align-items:center;padding:5px}.history-head button,.history-item button{border:0;background:none;cursor:pointer}.history-item{display:grid;grid-template-columns:1fr auto;padding:9px;border-radius:7px;cursor:pointer}.history-item.active,.history-item:hover{background:#edf7f6}.history-item span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.chat-chart{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}.chat-chart canvas{height:250px}.chart-legend{display:flex;gap:12px;color:var(--muted);font-size:10px}.chart-legend i{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:4px}@media(max-width:800px){.chat-workspace{grid-template-columns:1fr}.chat-history{min-height:auto;max-height:160px}}
+.chat-bubble.has-dashboard{width:100%;max-width:100%;padding:16px}
+.ai-dashboard{margin-top:14px;background:#f4f7fa;border:1px solid var(--line);border-radius:12px;padding:18px;white-space:normal}
+.dashboard-head{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}
+.dashboard-head small{color:var(--teal);font-size:10px;font-weight:800;letter-spacing:1px}.dashboard-head h2{font-size:22px;margin:3px 0}.dashboard-head p{margin:0;color:var(--muted)}
+.dashboard-download{white-space:nowrap}.dashboard-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+.dashboard-kpis article{background:#fff;border:1px solid var(--line);border-radius:9px;padding:13px}.dashboard-kpis small,.dashboard-kpis strong{display:block}.dashboard-kpis small{color:var(--muted);font-size:9px;font-weight:700}.dashboard-kpis strong{font-size:19px;margin-top:5px}
+.dashboard-charts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.dashboard-chart{background:#fff;border:1px solid var(--line);border-radius:9px;padding:12px;min-width:0}.dashboard-chart .chat-chart{border-top:0;margin-top:0;padding-top:0}
+@media(max-width:900px){.dashboard-kpis{grid-template-columns:repeat(2,1fr)}.dashboard-charts{grid-template-columns:1fr}.dashboard-head{align-items:flex-start;flex-direction:column}}
+.chart-description{margin:4px 0 10px;color:var(--muted);font-size:12px;line-height:1.4}
+.objective-context{padding:12px;margin-bottom:14px;background:#e8f7f5;border-radius:8px;line-height:1.5;font-size:13px}
+.objective-context details{margin:8px 0}.objective-context summary{cursor:pointer;font-weight:700}
+.objective-table-scroll{overflow:auto;max-height:480px}.objective-table table{border-collapse:collapse;min-width:100%;font-size:12px}
+.objective-table th,.objective-table td{padding:9px;border-bottom:1px solid #e3eaf0;text-align:left;white-space:nowrap}
+.objective-table th{background:#e8f7f5;position:sticky;top:0}.objective-table tr:nth-child(even){background:#f4f7fa}
+.dashboard-chart:has(.objective-table){grid-column:1/-1}
+.objective-visual-chart{overflow-x:auto}.objective-visual-chart .chart-legend{flex-wrap:wrap}
+@media(max-width:650px){main{padding:14px 8px}.chat-main>.chat-card{padding:6px}.chat-bubble.has-dashboard{padding:6px}.ai-dashboard{padding:8px}.dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.dashboard-kpis article{padding:8px;min-width:0}.dashboard-kpis strong{font-size:15px;overflow-wrap:anywhere}.objective-visual-chart canvas{min-width:460px}.objective-visual-chart::after{content:'Desliza horizontalmente para ver el gráfico completo';display:block;color:var(--muted);font-size:11px;margin-top:8px}}
+
+.adaptive-view{height:calc(100vh - 150px);min-height:520px}
+.chat-workspace{height:100%;margin-top:0;align-items:stretch}
+.chat-main{min-width:0;min-height:0;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.chat-main>.chat-card{flex:1;min-height:0;max-height:none;margin:0;border:0;border-radius:0}
+.chat-composer{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:14px 16px 10px;background:#fff;border-top:1px solid var(--line)}
+.chat-composer textarea{width:100%;min-height:46px;max-height:180px;resize:none;overflow-y:auto;border:1px solid #cfd8e3;border-radius:12px;padding:12px 14px;color:var(--ink);background:#f9fbfc;font:inherit;line-height:1.45;outline:none}
+.chat-composer textarea:focus{border-color:var(--teal);box-shadow:0 0 0 3px #11a99a1f;background:#fff}
+.chat-composer #ask{align-self:end;min-height:46px}
+.chat-composer small{grid-column:1/-1;color:var(--muted);font-size:10px;padding-left:3px}
+@media(max-width:800px){.adaptive-view{height:auto;min-height:0}.chat-workspace{height:auto}.chat-main{min-height:520px}.chat-composer{grid-template-columns:1fr auto}}
