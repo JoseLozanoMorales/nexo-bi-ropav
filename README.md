@@ -4,13 +4,13 @@ Proyecto académico unificado que demuestra cómo cada nueva venta modifica inme
 
 ## Ejecutar con Docker
 
-Requiere Docker Desktop (o Docker Engine en Linux):
+Requiere Docker Desktop (o Docker Engine con Compose en Linux), acceso a Internet y puertos 8000 y 5433 disponibles. Clona la rama `IA-Jose` y configura tu propio `.env` a partir de `.env.example` antes de iniciar:
 
 ```bash
 docker compose up --build
 ```
 
-Abrir `http://127.0.0.1:8000`. La primera ejecución restaura automáticamente el backup en PostgreSQL 18 y conserva los cambios en un volumen persistente.
+Abrir `http://127.0.0.1:8000`. La primera ejecución restaura el archivo versionado `ROPA_VACANA2-2.backup` en la base `RopaV2` de PostgreSQL 18 y conserva los cambios en un volumen persistente. La restauración solo ocurre cuando el volumen está vacío: actualizar el backup no reemplaza los datos de una instalación existente. No borres el volumen para actualizar la aplicación. El backup es una instantánea; los cambios posteriores de tu base local requieren un nuevo respaldo para trasladarlos.
 
 ## Activar el chat OpenAI + MCP
 
@@ -23,9 +23,11 @@ El navegador nunca recibe la API key. La aplicación llama a OpenAI Responses AP
 
 Las consultas son automáticas. Para registrar una venta mediante el chat, la IA debe consultar primero el catálogo y solicitar una confirmación explícita antes de ejecutar la herramienta de escritura.
 
+El chat no tiene un límite local de cantidad de prompts ni un máximo fijo de rondas de herramientas por respuesta. Conserva la detección de llamadas idénticas repetidas para detener bucles sin progreso. Siguen aplicando los límites, disponibilidad y costos de la API; una respuesta con muchas rondas puede tardar más y consumir más tokens. La variable MAX_TOOL_ROUNDS ya no se utiliza.
+
 ## Power BI
 
-La aplicación crea el esquema `dw` del programa empresarial anterior y sincroniza cada venta o cancelación automáticamente. En Power BI Desktop conecta PostgreSQL a `localhost:5433`, base `RopaV`, esquema `dw`, usando **DirectQuery**. El reporte seguro se muestra en la sección Power BI de la aplicación; se puede reemplazar definiendo `POWER_BI_EMBED_URL` antes de iniciar Docker.
+La aplicación crea el esquema `dw` del programa empresarial anterior y sincroniza cada venta o cancelación automáticamente. En Power BI Desktop conecta PostgreSQL a `localhost:5433`, base `RopaV2`, esquema `dw`, usando **DirectQuery**. El reporte seguro se muestra en la sección Power BI de la aplicación; se puede reemplazar definiendo `POWER_BI_EMBED_URL` antes de iniciar Docker.
 
 ## Objetivos analíticos
 

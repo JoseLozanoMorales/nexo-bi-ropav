@@ -8,7 +8,6 @@ from dashboard_builder import build_dashboard
 from objective_dashboards import detect_objective
 from semantic_analytics import DIMENSIONS as SEMANTIC_DIMENSIONS, MEASURES as SEMANTIC_MEASURES
 MODEL=os.getenv("OPENAI_MODEL","gpt-5-mini")
-MAX_TOOL_ROUNDS=max(1,min(int(os.getenv("MAX_TOOL_ROUNDS","10")),20))
 logger=logging.getLogger("nexo_bi.tools")
 COLOMBIA_TZ=timezone(timedelta(hours=-5))
 def _today():
@@ -358,7 +357,8 @@ def ask(messages):
  client=OpenAI(); history=[{"role":m["role"],"content":str(m["content"])[:6000]} for m in messages[-12:] if m.get("role") in ("user","assistant")]
  response=client.responses.create(model=MODEL,instructions=_system_instructions(),input=history,tools=openai_tools(),parallel_tool_calls=False)
  used=[]; chart=None; evidence=None; last_data=None; tool_cache={}; repeated_calls={}; weekly_evidence=None; sale_criterion=None
- for round_index in range(MAX_TOOL_ROUNDS):
+ round_index=0
+ while True:
   calls=[item for item in response.output if item.type=="function_call"]
   if not calls:
    answer=_validated_text(response.output_text,evidence)
@@ -395,6 +395,5 @@ def ask(messages):
    if cached and repeated_calls[signature]>=2:
     return {"text":_fallback_text(last_data,"se detuvo una llamada repetida"),"tools":used,"model":MODEL,"chart":chart,"recovered":True}
    outputs.append({"type":"function_call_output","call_id":call.call_id,"output":json.dumps(result.get("structuredContent",result.get("content",result)),ensure_ascii=False)})
+  round_index+=1
   response=client.responses.create(model=MODEL,instructions=_system_instructions(),previous_response_id=response.id,input=outputs,tools=openai_tools(),parallel_tool_calls=False)
- logger.warning("Maximo de rondas MCP alcanzado: %s",MAX_TOOL_ROUNDS)
- return {"text":_fallback_text(last_data,f"se alcanzo el maximo de {MAX_TOOL_ROUNDS} rondas"),"tools":used,"model":MODEL,"chart":chart,"recovered":True}

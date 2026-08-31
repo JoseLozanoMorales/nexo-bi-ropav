@@ -6,7 +6,7 @@ from pathlib import Path
 import psycopg
 from psycopg.rows import dict_row
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:prototipo_local@127.0.0.1:5433/RopaV")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:prototipo_local@127.0.0.1:5433/RopaV2")
 ROOT = Path(__file__).parent
 DW_SOURCE = ROOT / "PROGRAMA EMPRESARIAL" / "PROGRAMA EMPRESARIAL"
 
