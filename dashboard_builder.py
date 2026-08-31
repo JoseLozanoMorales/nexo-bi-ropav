@@ -1,6 +1,7 @@
 """Construccion determinista de dashboards adaptados al prompt."""
 import re
 import unicodedata
+from copy import deepcopy
 from mcp_server import call_tool
 from semantic_analytics import chart_contract
 from objective_dashboards import detect_objective, build_objective_dashboard
@@ -67,7 +68,9 @@ def _planned_dashboard(filters,plan):
  kpis=[{"label":KPI_LABELS[key],"value":values.get(key,0),"format":KPI_FORMATS[key]} for key in requested if key in KPI_LABELS]
  charts=[chart_contract(item,filters) for item in (plan.get("charts") or [])[:6]]
  if not charts: raise ValueError("El plan no produjo gráficos compatibles con la capa semántica")
- return {"title":str(plan.get("title") or "Dashboard dinámico")[:90],"subtitle":f"Periodo: {_period(filters)} · Consulta semántica validada · Fuente: PostgreSQL RopaV","filters":filters,"kpis":kpis,"charts":charts}
+ title=re.split(r"\s*[—–]\s*(?:nota|criterio)\b",str(plan.get("title") or "Dashboard dinámico"),maxsplit=1,flags=re.I)[0].strip()
+ geography=" · ".join(f"{key.capitalize()}: {filters[key]}" for key in ("region","provincia","canal") if filters.get(key))
+ return {"title":title[:90],"subtitle":f"Periodo: {_period(filters)}"+(" · "+geography if geography else "")+" · Fuente: PostgreSQL RopaV","filters":filters,"kpis":kpis,"charts":charts,"plan":deepcopy(plan)}
 def _fallback_plan(prompt):
  text=_plain(prompt); charts=[]
  mapping=[("gener",["genero"],"doughnut"),("categoria",["categoria"],"bar"),("producto",["producto"],"bar"),("canal",["canal"],"doughnut"),("region",["region"],"bar"),("provincia",["provincia"],"bar"),("client",["cliente"],"bar"),("segment",["segmento_cliente"],"doughnut"),("talla",["talla"],"bar"),("color",["color_principal"],"bar"),("pago",["metodo_pago"],"doughnut"),("promocion",["promocion"],"bar")]
@@ -86,6 +89,7 @@ def _inventory_sales_dashboard(filters,prompt):
  k=summary["indicadores"]; kpis=_kpis(k)[:4]+[{"label":"Productos comercializados","value":len(sold_names),"format":"number"},{"label":"Stock disponible asociado","value":sum(float(row.get("ingresos",0) or 0) for row in stock_rows),"format":"number"}]
  return {"title":"Dashboard de inventario y ventas","subtitle":f"Periodo: {_period(filters)} · Ventas con filtro solicitado; inventario global actual · Fuente: PostgreSQL RopaV","filters":filters,"kpis":kpis,"charts":charts}
 def build_dashboard(filters,title=None,prompt="",plan=None):
+ if plan: return _planned_dashboard(filters,plan)
  objective_id=detect_objective(prompt)
  if objective_id: return build_objective_dashboard(objective_id,filters)
  text=_plain(prompt)

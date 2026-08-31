@@ -1,0 +1,79 @@
+/* Responsive overrides scoped to the main navigation, not conversation history. */
+main,.grid>*,.chat-workspace>*,.context-grid>*,.integration-status>*{min-width:0}
+#mainSidebar{z-index:40;overflow-y:auto}
+.filters{flex-wrap:wrap}
+.filters label{min-width:120px;flex:1 1 130px}
+.filters input,.filters select,.form-grid input,.form-grid select{width:100%;min-width:0;min-height:44px}
+.kpis{grid-template-columns:repeat(5,minmax(0,1fr))}
+.kpi strong,.dashboard-kpis strong{overflow-wrap:anywhere}
+.chat-workspace{grid-template-columns:220px minmax(0,1fr)}
+.chat-history{max-height:none;min-height:0}
+.chat-bubble{overflow-wrap:anywhere;min-width:0}
+.chart-legend{flex-wrap:wrap}
+.table-wrap,.objective-table-scroll{max-width:100%;overscroll-behavior-x:contain}
+.table-wrap table{min-width:760px}
+.card-head,.rank-top{gap:10px;flex-wrap:wrap}
+.integration-hero{gap:18px;flex-wrap:wrap}
+.menu-toggle,.menu-close,.history-toggle{display:none}
+.menu-backdrop[hidden]{display:none}
+.menu-backdrop{position:fixed;inset:0;border:0;background:#0b172799;z-index:39}
+button:focus-visible,a:focus-visible{outline:3px solid var(--cyan);outline-offset:3px}
+dialog{max-height:calc(100dvh - 32px);overflow-y:auto}
+#toast{z-index:70;max-width:calc(100vw - 32px);bottom:max(16px,env(safe-area-inset-bottom))}
+@media(max-width:1200px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}.context-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:1000px){
+ body{display:block}
+ #mainSidebar{width:min(290px,85vw);padding:24px 18px;transform:translateX(-100%);visibility:hidden;transition:transform .2s,visibility .2s}
+ body.menu-open #mainSidebar{transform:none;visibility:visible}
+ body.menu-open{overflow:hidden}
+ #mainSidebar .brand div{font-size:14px}
+ #mainSidebar nav button,#mainSidebar nav button:not(.active){font-size:14px;min-height:44px}
+ #mainSidebar .mcp-status div{display:block}
+ #mainSidebar .brand{padding:0 0 24px}
+ .menu-toggle{display:block;position:sticky;top:0;z-index:30;width:100%;min-height:48px;text-align:left;padding:12px 18px;background:var(--nav);color:white;border:0;font:inherit;font-weight:700}
+ .menu-close{display:block;align-self:flex-end;background:none;border:0;color:white;font-size:26px;min-width:44px;min-height:44px}
+ main{margin:0;width:100%;max-width:none;padding:20px}
+ h1{font-size:clamp(22px,4vw,30px)}
+ header{gap:16px;flex-wrap:wrap}
+ .chat-workspace{grid-template-columns:180px minmax(0,1fr)}
+ .adaptive-view{height:var(--chat-space,calc(100dvh - 190px));min-height:160px}
+ .chat-main{min-height:0}
+}
+@media(max-width:800px){
+ .chat-workspace{display:flex;flex-direction:column;height:100%;gap:8px}
+ .history-toggle{display:block;align-self:flex-start;border:1px solid var(--line);border-radius:8px;background:white;color:var(--ink);min-height:44px;padding:8px 14px;font:inherit}
+ .chat-history{display:none;flex:0 0 auto;max-height:155px;min-height:0;padding:8px}
+ .chat-workspace.history-open .chat-history{display:flex}
+ .chat-main{flex:1;min-height:0}
+ .chat-main>.chat-card{padding:12px;overscroll-behavior-y:contain}
+ .chat-bubble{max-width:96%;padding:12px}
+ .chat-empty{padding:24px 12px}
+ .context-grid{grid-template-columns:1fr}
+ .dashboard-head{align-items:stretch}
+ .dashboard-charts{grid-template-columns:minmax(0,1fr)}
+}
+@media(max-width:600px){
+ main{padding:14px 12px 20px}
+ header{margin-bottom:16px}
+ header .primary{min-height:44px;padding:10px 12px}
+ .kpis{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+ .kpi{padding:12px}.kpi strong{font-size:20px}
+ .filters{padding:12px;gap:8px}.filters label{flex-basis:calc(50% - 8px);min-width:0}
+ .chart-card,.table-card,.report-card,.context-hero,.context-grid article{padding:14px}
+ .chat-composer{padding:10px 8px max(8px,env(safe-area-inset-bottom));gap:6px}
+ .chat-composer textarea{font-size:16px;padding:10px;min-height:44px}
+ .chat-composer #ask{padding:10px;min-height:44px}
+ .chat-composer small{font-size:10px}
+ .chat-bubble.has-dashboard{padding:6px;max-width:100%}
+ .ai-dashboard{padding:8px}
+ .dashboard-head h2{font-size:19px}
+ .dashboard-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .dashboard-chart{padding:8px}
+ .integration-hero{padding:18px}
+ .integration-status{grid-template-columns:1fr}
+ .report-card iframe{height:65dvh;min-height:300px}
+ .form-grid{grid-template-columns:minmax(0,1fr);padding:16px}
+ .modal-head,.modal-actions{padding:16px}
+ .modal-actions{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){#mainSidebar{transition:none}}

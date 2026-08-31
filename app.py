@@ -11,6 +11,7 @@ from urllib.parse import parse_qs, urlparse
 
 from db import add_sale, catalog, dashboard, delete_sale, dw_status, init_db, sync_powerbi
 from ai_chat import MODEL as OPENAI_MODEL, ask as ask_ai
+from api_errors import validate_chat, public_error
 
 
 ROOT = Path(__file__).parent
@@ -28,6 +29,13 @@ class Handler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
+        try:
+            return self.get_response()
+        except Exception as exc:
+            body, status = public_error(exc)
+            return self.send_json(body, status)
+
+    def get_response(self):
         parsed = urlparse(self.path)
         if parsed.path == "/api/dashboard":
             params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
@@ -42,7 +50,7 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_json({"ok": True, "ia_configurada": bool(os.getenv("OPENAI_API_KEY")),
                                    "modelo": OPENAI_MODEL, "mcp": True})
         path = ROOT / ("index.html" if parsed.path == "/" else parsed.path.lstrip("/"))
-        if not path.is_file() or ROOT not in path.resolve().parents:
+        if not path.is_file() or ROOT not in path.resolve().parents or path.suffix.lower() not in {".html", ".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2"}:
             return self.send_error(404)
         data = path.read_bytes()
         self.send_response(200)
@@ -62,13 +70,14 @@ class Handler(SimpleHTTPRequestHandler):
         if path == "/api/chat":
             try:
                 length = int(self.headers.get("Content-Length", 0))
+                if not 0 < length <= 4000000:
+                    return self.send_json({"ok": False, "error": "La conversación supera el tamaño permitido. Inicia un chat nuevo."}, 413)
                 payload = json.loads(self.rfile.read(length))
-                messages = payload.get("messages", [])
-                if not messages or messages[-1].get("role") != "user":
-                    raise ValueError("Se requiere un mensaje del usuario")
+                messages = validate_chat(payload)
                 return self.send_json({"ok": True, **ask_ai(messages)})
             except Exception as exc:
-                return self.send_json({"ok": False, "error": str(exc)}, 400)
+                body, status = public_error(exc)
+                return self.send_json(body, status)
         if path != "/api/ventas":
             return self.send_error(404)
         try:

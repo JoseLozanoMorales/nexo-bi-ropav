@@ -11,3 +11,9 @@ pbix/RopaVacana_App.pbix.zip
 pbix/RopaVacana_App.pbix/
 .DS_Store
 Thumbs.db
+
+# Local QA output, database backups and Office lock files
+/tmp/
+/.docx-review/
+*.backup
+~$*

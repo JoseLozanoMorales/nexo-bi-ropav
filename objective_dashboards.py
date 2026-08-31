@@ -106,6 +106,8 @@ def plain(text):
 def detect_objective(text):
     """Conservative routing; unrelated dashboards retain the generic planner."""
     text = plain(text)
+    if re.search(r"\b(sustituye|reemplaza|unicamente|exactamente)\b",text):
+        return None
     ids = set(re.findall(r"(?:objetivo|dashboard|tablero|pagina)\s*(?:numero\s*|n[º°.]?\s*|#\s*)?([1-6])\b", text))
     if len(ids) == 1:
         return int(next(iter(ids)))

@@ -3,12 +3,18 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Nexo BI · Dashboards RopaV</title><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="integrations.css"><link rel="stylesheet" href="chat.css">
+<link rel="stylesheet" href="responsive.css">
+<link rel="stylesheet" href="chat_tables.css">
+<script src="chat_tables.js"></script>
 </head>
 <body>
-  <aside>
+  <button id="menuToggle" class="menu-toggle" type="button" aria-controls="mainSidebar" aria-expanded="false">☰ Menú</button>
+  <button id="menuBackdrop" class="menu-backdrop" type="button" aria-label="Cerrar menú" hidden></button>
+  <aside id="mainSidebar">
+    <button id="menuClose" class="menu-close" type="button" aria-label="Cerrar menú">×</button>
     <div class="brand"><span>N</span><div><b>Nexo BI</b><small>Inteligencia transaccional</small></div></div>
     <nav id="nav">
-      <button data-view="datos">11&nbsp; Catálogo de datos</button>
+      <button data-view="datos">Catálogo de datos</button>
       <div class="nav-label">HERRAMIENTAS BI</div>
       <button class="tool powerbi" data-view="powerbi">Power BI</button>
       <button class="tool tableau" data-view="tableau">Tableau <small>Próximamente</small></button>
@@ -60,4 +66,6 @@
     <label><span>Personalización</span><select name="es_personalizado"><option value="">No</option><option value="true">Sí</option></select></label>
   </div><div class="modal-actions"><button type="button" id="cancelDialog">Cancelar</button><button class="primary" type="submit">Guardar y actualizar</button></div></form></dialog>
   <div id="toast"></div><script src="dashboard.js"></script><script src="app.js"></script><script src="objective_charts.js"></script>
+<script src="chart_export.js"></script>
+<script src="responsive.js"></script>
 </body></html>

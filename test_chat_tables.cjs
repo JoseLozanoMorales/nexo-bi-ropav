@@ -1,0 +1,13 @@
+const assert=require('node:assert/strict');
+const {parse,render}=require('./chat_tables.js');
+const text='Resultados:\n\n| Canal | Todas | Canceladas | No canceladas |\n| --- | ---: | ---: | ---: |\n| Redes Sociales | 112 | 5 | 107 |\n| Tienda Física | 117 | 3 | 114 |\n| WhatsApp | 111 | 2 | 109 |\n| Total | 340 | 10 | 330 |\n\nFuente: datos de prueba';
+let blocks=parse(text),table=blocks.find(b=>b.type==='table');assert.equal(table.headers.length,4);assert.equal(table.rows.length,4);assert.equal(table.rows[3][3],'330');
+assert.equal(parse('| A | B |\n| --- | --- |\n| X \\| Y | 2 |')[0].rows[0][0],'X | Y');
+assert.ok(parse('```\n'+text+'\n```').every(b=>b.type==='text'));
+assert.ok(parse('| A | B |\n| --- | --- |\n| too | many | cells |').every(b=>b.type==='text'));
+assert.ok(parse('Mensaje sin tablas').every(b=>b.type==='text'));
+assert.equal(parse(text+'\n'+text).filter(b=>b.type==='table').length,2);
+const doc={createElement(tag){return {tag,ownerDocument:doc,children:[],classList:{add(){}},setAttribute(){},append(...items){this.children.push(...items)},appendChild(item){this.children.push(item)},replaceChildren(){this.children=[]}}}};
+const container=doc.createElement('div');render(container,'| Canal | Total |\n| --- | --- |\n| <img src=x onerror=alert(1)> | 1 |');
+const wrap=container.children[0],body=wrap.children[0].children[1];assert.equal(body.children[0].children[0].textContent,'<img src=x onerror=alert(1)>');assert.equal(body.children[0].children[0].children.length,0);
+console.log('7 comprobaciones de tablas OK: estructura, escape, código, entradas inválidas, texto, tablas múltiples y seguridad DOM.');

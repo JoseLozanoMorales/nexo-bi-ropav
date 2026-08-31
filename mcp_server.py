@@ -1,6 +1,7 @@
 """Servidor MCP de Nexo BI: stdio y puente interno para el chat."""
 from __future__ import annotations
 import json, sys
+from chat_evidence import cancellation_counts, validate_dates
 from weekly_analysis import SALE_CRITERION
 from objective_dashboards import objective_catalog, build_objective_dashboard
 from datetime import date
@@ -11,6 +12,7 @@ from statistical_charts import boxplot_sales, heatmap_month_province, monthly_in
 
 DIMENSIONS=["resumen","tendencia","producto","categoria","region","provincia","canal","cliente","cliente_individual","inventario","entrega"]
 TOOLS=[
+ {"name":"consultar_cancelaciones","description":"Cuenta TODAS las ventas, canceladas, no canceladas y sin estado por canal, con totales y comprobación. Solo lectura; úsala para comparar estados o incluir canceladas.","inputSchema":{"type":"object","properties":{k:{"type":"string"} for k in ("desde","hasta","region","provincia","canal")},"additionalProperties":False}},
  {"name":"consultar_objetivos_dashboards","description":"Los seis objetivos oficiales de RopaVacana: pregunta de negocio, medidas, gráficos, tablas y matrices de referencia Power BI.","inputSchema":{"type":"object","properties":{},"additionalProperties":False}},
  {"name":"generar_dashboard_objetivo","description":"Recrea un dashboard con datos reales y fórmulas del PBIT. Objetivos: 1 semanal, 2 mensual, 3 regiones, 4 clientes, 5 personalización, 6 promociones. Solo lectura.","inputSchema":{"type":"object","required":["objetivo"],"properties":{"objetivo":{"type":"integer","minimum":1,"maximum":6},"desde":{"type":"string"},"hasta":{"type":"string"},"region":{"type":"string"},"provincia":{"type":"string"},"canal":{"type":"string"}},"additionalProperties":False}},
  {"name":"consultar_analitica","description":"Consulta indicadores reales de RopaV y una dimension. Usa resumen para KPIs, tendencia para meses, inventario para stock y entrega para logistica.","inputSchema":{"type":"object","required":["dimension"],"properties":{"dimension":{"type":"string","enum":DIMENSIONS},"desde":{"type":"string","description":"Fecha YYYY-MM-DD"},"hasta":{"type":"string","description":"Fecha YYYY-MM-DD"},"region":{"type":"string","description":"Región exacta: Costa, Sierra, Amazonía o Insular"},"provincia":{"type":"string","description":"Provincia exacta"},"canal":{"type":"string","description":"Canal exacto"},"orden":{"type":"string","enum":["ingresos","unidades","utilidad"],"description":"Para productos mas vendidos usa unidades"},"limite":{"type":"integer","minimum":1,"maximum":20,"description":"Cantidad maxima de resultados"}},"additionalProperties":False}},
@@ -33,6 +35,8 @@ def text_result(data):
   data.setdefault("criterio_ventas",SALE_CRITERION)
  return {"content":[{"type":"text","text":json.dumps(data,ensure_ascii=False)}],"structuredContent":data}
 def call_tool(name,args):
+ validate_dates(args)
+ if name=="consultar_cancelaciones": return text_result(cancellation_counts(args))
  if name=="consultar_objetivos_dashboards": return text_result(objective_catalog())
  if name=="generar_dashboard_objetivo": return text_result(build_objective_dashboard(args.get("objetivo"),{k:v for k,v in args.items() if k in ("desde","hasta","region","provincia","canal")}))
  if name=="consultar_boxplot_ventas": return text_result(boxplot_sales({k:v for k,v in args.items() if k in ("desde","hasta","region","provincia","canal")},args.get("agrupar_por","canal")))

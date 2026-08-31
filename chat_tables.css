@@ -1,0 +1,12 @@
+.chat-bubble.has-table{max-width:100%;width:min(100%,900px)}
+.chat-text{white-space:pre-wrap;overflow-wrap:anywhere}
+.chat-table-scroll{max-width:100%;overflow-x:auto;margin:12px 0;white-space:normal;border:1px solid var(--line);border-radius:8px;overscroll-behavior-x:contain}
+.chat-table-scroll table{width:100%;border-collapse:collapse;min-width:420px}
+.chat-table-scroll th,.chat-table-scroll td{padding:11px 14px;text-align:left;font-size:12px;line-height:1.5;border-bottom:1px solid var(--line);min-width:95px;vertical-align:top;overflow-wrap:normal}
+.chat-table-scroll thead th{background:#eaf5f4;color:var(--ink);font-weight:700;letter-spacing:0}
+.chat-table-scroll tbody th{color:var(--ink);font-weight:500;letter-spacing:0}
+.chat-table-scroll tbody tr:nth-child(even){background:#f7fafc}
+.chat-table-scroll .chat-table-total>*{font-weight:700;background:#eaf5f4;border-top:2px solid #c9dedb}
+.chat-table-scroll tr:last-child>*{border-bottom:0}
+.chat-table-scroll:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+@media(max-width:600px){.chat-table-scroll th,.chat-table-scroll td{padding:9px 10px}.chat-bubble.has-table{padding:10px;min-width:0}}

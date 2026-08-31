@@ -1,5 +1,6 @@
 """Capa semántica segura para análisis dinámico de ventas."""
 from db import connect
+from chat_evidence import validate_dates
 from weekly_analysis import SALE_CRITERION, weekly_summary
 
 DIMENSIONS={
@@ -69,6 +70,7 @@ def semantic_catalog():
  return {"modelo":"ventas","dimensiones":list(DIMENSIONS),"metricas":list(MEASURES),"limite_dimensiones":2}
 
 def query_semantic(dimensions,measure,filters=None,limit=12):
+ validate_dates(filters or {})
  dimensions=list(dict.fromkeys(dimensions or []))
  if not 1<=len(dimensions)<=2: raise ValueError("Se requieren una o dos dimensiones")
  if any(item not in DIMENSIONS for item in dimensions): raise ValueError("Dimensión no permitida")
@@ -102,9 +104,13 @@ def query_semantic(dimensions,measure,filters=None,limit=12):
 DISPLAY={"dia":"día","mes":"mes","trimestre":"trimestre","anio":"año","dia_semana":"día de la semana","genero":"género","rango_edad":"rango de edad","tipo_cliente":"tipo de cliente","frecuencia_compra":"frecuencia de compra","segmento_cliente":"segmento de cliente","canal_preferido":"canal preferido","cliente":"cliente","producto":"producto","categoria":"categoría","proveedor":"proveedor","sku":"SKU","talla":"talla","color_principal":"color","personalizado":"personalización","canal":"canal","estado_venta":"estado de venta","promocion":"promoción","administrador":"administrador","metodo_pago":"método de pago","region":"región","provincia":"provincia","ciudad":"ciudad","zona":"zona","tipo_entrega":"tipo de entrega","estado_entrega":"estado de entrega"}
 PALETTE=["#11a99a","#ff9f68","#56c5d0","#8576d4","#e57b9b","#f2c14e","#4f86c6","#72b01d"]
 
-def chart_contract(item,filters):
+def chart_contract(item,filters,result=None):
  dimensions=item.get("dimensions") or ([item["dimension"]] if item.get("dimension") else [])
- metric=item.get("metric","ingresos"); requested_limit=500 if dimensions[0] in ("dia","mes","trimestre","anio") else item.get("limit",12); result=query_semantic(dimensions,metric,filters,requested_limit); rows=result["datos"]
+ metric=item.get("metric","ingresos"); requested_limit=500 if dimensions[0] in ("dia","mes","trimestre","anio") else item.get("limit",12); result=result or query_semantic(dimensions,metric,filters,requested_limit); rows=result["datos"]
+ item=dict(item)
+ if metric in ("margen","ticket_promedio","clientes") and item.get("type") in ("pie","doughnut"):
+  item["type"]="bar"
+  item["orientation"]="horizontal"
  labels=list(dict.fromkeys(str(row["etiqueta"]) for row in rows))
  if dimensions[0]=="mes":
   title="Evolución mensual de "+LABELS[metric].lower()
@@ -114,10 +120,13 @@ def chart_contract(item,filters):
   datasets=[{"label":result["etiqueta_metrica"],"values":[row["valor"] for row in rows],"color":PALETTE[0]}]
   if rows:
    leader=max(rows,key=lambda row:row["valor"]); total=sum(float(row["valor"]) for row in rows)
-   description=str(leader["etiqueta"])+" lidera con "+format(leader["valor"],",.2f")+((", "+format(leader["valor"]/total*100,".1f")+"% de lo mostrado.") if total else ".")
+   leaders=[str(row["etiqueta"]) for row in rows if row["valor"]==leader["valor"]]
+   description=" y ".join(leaders)+(" empatan en el primer puesto con " if len(leaders)>1 else " lidera con ")+format(leader["valor"],",.2f")
+   if len(leaders)>1: description+=" cada uno"
+   description+=(" %." if metric=="margen" else ((", "+format(leader["valor"]/total*100,".1f")+"% de lo mostrado"+(" cada uno." if len(leaders)>1 else ".")) if total and metric not in ("ticket_promedio","clientes") else "."))
   else: description="No se encontraron datos para los filtros solicitados."
  else:
   series=list(dict.fromkeys(str(row["serie"]) for row in rows)); lookup={(str(row["etiqueta"]),str(row["serie"])):row["valor"] for row in rows}
   datasets=[{"label":serie,"values":[lookup.get((label,serie),0) for label in labels],"color":PALETTE[i%len(PALETTE)]} for i,serie in enumerate(series)]
   description="Comparación de "+result["etiqueta_metrica"].lower()+" por "+DISPLAY[dimensions[0]]+" y "+DISPLAY[dimensions[1]]+"."
- return {"type":item.get("type","bar"),"orientation":item.get("orientation","vertical"),"title":title,"description":description,"labels":labels,"datasets":datasets,"colors":PALETTE[:max(len(labels),len(datasets))],"value_format":result["formato"],"source":"PostgreSQL RopaV","semantic":{"modelo":"ventas","dimensiones":dimensions,"metrica":metric}}
+ return {"type":item.get("type","bar"),"orientation":item.get("orientation","vertical"),"title":title,"description":description,"labels":labels,"datasets":datasets,"colors":PALETTE[:max(len(labels),len(datasets))],"value_format":result["formato"],"source":"PostgreSQL RopaV","filters":dict(filters or {}),"semantic":{"modelo":"ventas","dimensiones":dimensions,"metrica":metric}}

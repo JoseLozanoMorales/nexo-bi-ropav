@@ -32,19 +32,21 @@ def weekly_summary(rows, dimensions, start, end):
                        for group, values in sorted(groups.items())]}
 
 
-def weekly_text(result):
+def weekly_text(result, include_criterion=False):
     summary = result["estacionalidad_semanal"]
-    lines = ["Estacionalidad semanal — transacciones no canceladas.",
+    day_count = lambda n: f"{n} día" + ("s" if n != 1 else "")
+    lines = ["Estacionalidad semanal — transacciones.",
              f"Periodo: {summary['desde']} a {summary['hasta']}. Fuente: PostgreSQL RopaV (esquema public).",
-             SALE_CRITERION,
              "Filtros: " + json.dumps(result.get("filtros", {}), ensure_ascii=False),
-             f"Denominadores: {summary['dias_laborables']} días de lunes a viernes y {summary['dias_fin_semana']} días de sábado a domingo. {summary['nota']}"]
+             f"Denominadores: {day_count(summary['dias_laborables'])} de lunes a viernes y {day_count(summary['dias_fin_semana'])} de sábado a domingo. {summary['nota']}"]
+    if include_criterion: lines.append(SALE_CRITERION)
     for group in summary["grupos"]:
         average = lambda value: "No aplicable (sin días en el periodo)" if value is None else f"{value:.3f} transacciones/día"
-        lines.append(f"{group['grupo']}: {group['transacciones']:g} transacciones no canceladas.\n"
+        noun = 'transacción' if group['transacciones'] == 1 else 'transacciones'
+        lines.append(f"{group['grupo']}: {group['transacciones']:g} {noun}.\n"
                      f"- Lunes–viernes: {group['laborables']:g}; promedio: {average(group['promedio_laborable'])}.\n"
                      f"- Sábado–domingo: {group['fin_semana']:g}; promedio: {average(group['promedio_fin_semana'])}.")
     if not summary["grupos"]:
-        lines.append("No hay transacciones no canceladas con estos filtros.")
+        lines.append("No hay transacciones con estos filtros.")
     lines.append("Estos resultados describen frecuencia de transacciones, no ticket promedio, importe gastado ni afluencia de visitantes. No permiten concluir diferencias en esas métricas.")
     return "\n\n".join(lines)

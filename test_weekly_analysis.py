@@ -19,7 +19,8 @@ class WeeklyTests(unittest.TestCase):
                                 ["canal", "dia_semana"], "2024-01-01", "2024-01-01")
         self.assertIsNone(result["grupos"][0]["promedio_fin_semana"])
         text = weekly_text({"estacionalidad_semanal": result})
-        self.assertIn("no canceladas", text)
+        self.assertNotIn("canceladas", text)
+        self.assertIn("no canceladas", weekly_text({"estacionalidad_semanal": result}, include_criterion=True))
         self.assertIn("No aplicable", text)
         self.assertIn("no ticket promedio", text)
 
@@ -45,14 +46,14 @@ class WeeklyTests(unittest.TestCase):
         self.assertNotIn("Mayor ticket", answer["text"])
         self.assertIn("1.000 transacciones/día", answer["text"])
 
-    def test_chat_always_shows_sales_criterion(self):
+    def test_chat_does_not_repeat_sales_criterion(self):
         import ai_chat
         from weekly_analysis import SALE_CRITERION
         call = SimpleNamespace(type="function_call", name="consultar_semantica", call_id="test", arguments=json.dumps({"dimensiones": ["canal"], "metrica": "transacciones"}))
         with patch.dict(ai_chat.os.environ, {"OPENAI_API_KEY": "test-not-a-key"}), patch.object(ai_chat, "OpenAI") as client, patch.object(ai_chat, "openai_tools", return_value=[]), patch.object(ai_chat, "mcp_request", return_value={"structuredContent": {"criterio_ventas": SALE_CRITERION}}):
             client.return_value.responses.create.side_effect = [SimpleNamespace(output=[call], id="test"), SimpleNamespace(output=[], output_text="Hay 330 transacciones.")]
             answer = ai_chat.ask([{"role": "user", "content": "Cuántas transacciones hay por canal"}])
-        self.assertIn(SALE_CRITERION, answer["text"])
+        self.assertNotIn(SALE_CRITERION, answer["text"])
 
 
 if __name__ == "__main__":
