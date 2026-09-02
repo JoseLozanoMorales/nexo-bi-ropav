@@ -29,22 +29,16 @@ TABLEAU_OBJETIVOS = [
     {"id": "productos", "numero": 4, "titulo": "Productos: personalizado vs. estándar",
      "pregunta": "¿Los productos personalizados dejan más ganancia que los estándar, y en qué categorías?",
      "env": "TABLEAU_EMBED_URL_PRODUCTOS"},
-    {"id": "clientes", "numero": 5, "titulo": "Clientes: rentabilidad por segmento, edad y género",
-     "pregunta": "¿Qué segmento de cliente es más rentable y cómo varía por edad y género?",
-     "env": "TABLEAU_EMBED_URL_CLIENTES"},
-    {"id": "promociones", "numero": 6, "titulo": "Promociones: rentabilidad de promociones aplicadas",
-     "pregunta": "¿Qué promociones generan más ganancia neta, no solo más ventas?",
-     "env": "TABLEAU_EMBED_URL_PROMOCIONES"},
-    {"id": "region", "numero": 7, "titulo": "Región: Costa, Sierra y Oriente",
+    {"id": "region", "numero": 5, "titulo": "Región: Costa, Sierra y Oriente",
      "pregunta": "¿Qué región y provincia generan más ingresos, y con qué mezcla de categorías?",
-     "env": "TABLEAU_EMBED_URL_REGION", "fallback_env": "TABLEAU_EMBED_URL"},
+     "env": "TABLEAU_EMBED_URL_REGION"},
 ]
 
 
 def tableau_objetivos():
     objetivos = []
     for o in TABLEAU_OBJETIVOS:
-        url = os.getenv(o["env"]) or (os.getenv(o.get("fallback_env", ""), "") if o.get("fallback_env") else "")
+        url = os.getenv(o["env"], "")
         objetivos.append({"id": o["id"], "numero": o["numero"], "titulo": o["titulo"],
                           "pregunta": o["pregunta"], "embed_url": url, "publicado": bool(url)})
     return objetivos

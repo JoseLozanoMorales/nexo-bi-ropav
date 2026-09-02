@@ -13,7 +13,11 @@
 --      Si una venta tiene más de una línea, eso duplica el total de esa
 --      venta tantas veces como líneas tenga (fan-out). Se corrigió usando
 --      SUM(dv.subtotal) en vez de SUM(v.total_venta), y COUNT(DISTINCT
---      v.id_venta) en vez de COUNT(v.id_venta), en los objetivos 3, 5, 6 y 7.
+--      v.id_venta) en vez de COUNT(v.id_venta), en los objetivos 3 y 5.
+--
+-- Se documentan 5 objetivos (Ventas, Inventario, Canal, Productos, Región),
+-- que cubren el minimo exigido. Se descartaron los objetivos de Clientes y
+-- Promociones que se habian planteado inicialmente.
 
 -- =====================================================================
 -- Objetivo 1 — VENTAS: fin de semana vs. laboral y evolución mensual
@@ -102,58 +106,10 @@ GROUP BY cat.nombre_categoria, dv.es_personalizado
 ORDER BY ganancia_estimada DESC;
 
 -- =====================================================================
--- Objetivo 5 — CLIENTES: rentabilidad por segmento, edad y género
--- Pregunta de negocio: ¿qué segmento de cliente es más rentable y cómo
--- varía por edad y género?
--- Corrección: ingresos_totales y ticket_promedio usan dv.subtotal (mismo
--- fan-out que el objetivo 3).
--- =====================================================================
-SELECT
-    cl.segmento_cliente,
-    cl.genero,
-    cat.nombre_categoria,
-    COUNT(DISTINCT v.id_venta) AS num_compras,
-    SUM(dv.subtotal) AS ingresos_totales,
-    ROUND(SUM(dv.subtotal) / NULLIF(COUNT(DISTINCT v.id_venta), 0), 2) AS ticket_promedio,
-    ROUND(AVG(cl.edad), 1) AS edad_promedio
-FROM public.clientes cl
-JOIN public.ventas v ON v.id_cliente = cl.id_cliente AND v.estado_venta = 'Completada'
-JOIN public.detalle_ventas dv ON dv.id_venta = v.id_venta
-JOIN public.variantes_producto vp ON vp.id_variante = dv.id_variante
-JOIN public.productos p ON p.id_producto = vp.id_producto
-JOIN public.categorias cat ON cat.id_categoria = p.id_categoria
-GROUP BY cl.segmento_cliente, cl.genero, cat.nombre_categoria
-ORDER BY ingresos_totales DESC;
-
--- =====================================================================
--- Objetivo 6 — PROMOCIONES: rentabilidad de promociones aplicadas
--- Pregunta de negocio: ¿qué promociones generan más ganancia neta, no
--- solo más ventas?
--- Correcciones: promo.tipo_promocion no existe, es tipo_descuento;
--- num_ventas_con_promo e ingresos_con_promo/ticket_promedio_con_promo
--- usaban COUNT/SUM sin DISTINCT y sobre v.total_venta -- mismo fan-out.
--- =====================================================================
-SELECT
-    promo.nombre_promocion,
-    promo.tipo_descuento,
-    COUNT(DISTINCT v.id_venta) AS num_ventas_con_promo,
-    SUM(dv.subtotal) AS ingresos_con_promo,
-    SUM(dv.subtotal - (p.precio_compra * dv.cantidad)) AS ganancia_neta,
-    ROUND(SUM(dv.subtotal) / NULLIF(COUNT(DISTINCT v.id_venta), 0), 2) AS ticket_promedio_con_promo
-FROM public.ventas v
-JOIN public.promociones promo ON promo.id_promocion = v.id_promocion
-JOIN public.detalle_ventas dv ON dv.id_venta = v.id_venta
-JOIN public.variantes_producto vp ON vp.id_variante = dv.id_variante
-JOIN public.productos p ON p.id_producto = vp.id_producto
-WHERE v.estado_venta = 'Completada'
-GROUP BY promo.nombre_promocion, promo.tipo_descuento
-ORDER BY ganancia_neta DESC;
-
--- =====================================================================
--- Objetivo 7 — REGIÓN: Costa, Sierra y Oriente
+-- Objetivo 5 — REGIÓN: Costa, Sierra y Oriente
 -- Pregunta de negocio: ¿qué región y provincia generan más ingresos, y
 -- con qué mezcla de categorías?
--- Corrección: mismo fan-out que el objetivo 3/5/6 -- num_ventas,
+-- Corrección: mismo fan-out que el objetivo 3 -- num_ventas,
 -- ingresos_totales y ticket_promedio ahora usan DISTINCT/dv.subtotal.
 -- =====================================================================
 SELECT

@@ -1,7 +1,7 @@
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 let data={}, catalog={}, integrations={}, view='resumen', chatMessages=[];
 const titles={resumen:['Resumen ejecutivo','Datos reales de PostgreSQL · RopaV'],tendencia:['Evolución de ventas','Comportamiento mensual de ingresos y utilidad'],producto:['Rendimiento por producto','Productos que impulsan el crecimiento'],categoria:['Mezcla de categorías','Participación y rentabilidad del portafolio'],cliente:['Clientes y segmentos','Comportamiento de los segmentos de clientes'],canal:['Canales de venta','Aporte de cada canal comercial'],inventario:['Inventario y stock','Disponibilidad y niveles mínimos por SKU'],entrega:['Estado de entregas','Seguimiento del cumplimiento logístico'],powerbi:['Power BI','Reporte conectado al Data Warehouse de RopaV'],adaptable:['Análisis adaptable MCP','Consultas dinámicas sobre los datos del negocio']};
-const TABLEAU_TITLES={ventas:'1 · Ventas',inventario:'2 · Inventario',canal:'3 · Canal',productos:'4 · Productos',clientes:'5 · Clientes',promociones:'6 · Promociones',region:'7 · Región'};
+const TABLEAU_TITLES={ventas:'1 · Ventas',inventario:'2 · Inventario',canal:'3 · Canal',productos:'4 · Productos',region:'5 · Región'};
 const TABLEAU_META={
   ventas:{metricas:['Ingresos totales','Nº de ventas','Ticket promedio','% ventas fin de semana','Canal líder'],
     graficas:['Línea: evolución mensual de ingresos','Barras: fin de semana vs. laborable por canal','Barras: ranking de canales por ingresos','Líneas por canal a través del tiempo','Tabla cruzada mes × tipo de día (ticket promedio)']},
@@ -11,10 +11,6 @@ const TABLEAU_META={
     graficas:['Barras agrupadas: canal × ingresos por categoría','Mapa de calor: canal × categoría (gasto promedio)','Barras: ranking de canales por gasto promedio','Treemap: categorías dentro de cada canal','Tabla detalle canal × categoría']},
   productos:{metricas:['Ganancia estimada total','% personalizado vs. estándar','Ganancia promedio','Nº de pedidos totales','Categoría más rentable'],
     graficas:['Barras apiladas: ingresos por categoría (personalizado/estándar)','Barras: ganancia estimada por categoría','Dona: participación personalizado vs. estándar','Barras: ganancia promedio por categoría','Tabla detalle categoría × tipo de producto']},
-  clientes:{metricas:['Ingresos totales','Ticket promedio global','Edad promedio','Segmento más rentable','Género con más ingresos'],
-    graficas:['Barras: segmento × ingresos, color por género','Barras: categoría × ingresos por segmento','Dispersión: edad promedio vs. ingresos (tamaño = compras)','Barras: ticket promedio por género','Mapa de calor: segmento × categoría']},
-  promociones:{metricas:['Ingresos con promoción','Ganancia neta total','Ticket promedio con promo','Nº de ventas con promo','Promoción más rentable'],
-    graficas:['Barras: ranking de promociones por ganancia neta','Barras: ingresos por promoción, color tipo de descuento','Barras: ganancia neta por tipo de descuento','Dispersión: nº de ventas vs. ganancia neta por promo','Tabla detalle de promociones']},
   region:{metricas:['Ingresos totales','Ticket promedio','Nº de ventas','Región líder','Categoría líder'],
     graficas:['Mapa por provincia (ya construido)','Barras: Costa/Sierra/Oriente por ingresos','Barras apiladas: provincia × categoría','Ranking: top 10 provincias por ingresos','Treemap jerárquico región → provincia']}
 };
