@@ -15,7 +15,33 @@ from ai_chat import MODEL as OPENAI_MODEL, ask as ask_ai
 
 ROOT = Path(__file__).parent
 POWER_BI_EMBED_URL = os.getenv("POWER_BI_EMBED_URL", "https://app.powerbi.com/reportEmbed?reportId=7602737b-4a3d-4489-b108-ac24ef5ebc8a&autoAuth=true&ctid=edd334f8-81c6-4062-ad3a-87668a1e074e")
-TABLEAU_EMBED_URL = os.getenv("TABLEAU_EMBED_URL", "")
+
+TABLEAU_OBJETIVOS = [
+    {"id": "ventas", "numero": 1, "titulo": "Ventas: fin de semana vs. laboral y evolución mensual",
+     "pregunta": "¿Cómo evolucionan las ventas mes a mes y qué diferencia hay entre días laborables y fines de semana, por canal?",
+     "env": "TABLEAU_EMBED_URL_VENTAS"},
+    {"id": "inventario", "numero": 2, "titulo": "Inventario: tallas que se agotan más rápido",
+     "pregunta": "¿Qué tallas, dentro de cada categoría, están más cerca de quedarse sin stock?",
+     "env": "TABLEAU_EMBED_URL_INVENTARIO"},
+    {"id": "canal", "numero": 3, "titulo": "Canal: gasto promedio por canal y categoría",
+     "pregunta": "¿Qué canal genera mayor gasto promedio por cliente y en qué categorías?",
+     "env": "TABLEAU_EMBED_URL_CANAL"},
+    {"id": "productos", "numero": 4, "titulo": "Productos: personalizado vs. estándar",
+     "pregunta": "¿Los productos personalizados dejan más ganancia que los estándar, y en qué categorías?",
+     "env": "TABLEAU_EMBED_URL_PRODUCTOS"},
+    {"id": "region", "numero": 5, "titulo": "Región: Costa, Sierra y Oriente",
+     "pregunta": "¿Qué región y provincia generan más ingresos, y con qué mezcla de categorías?",
+     "env": "TABLEAU_EMBED_URL_REGION"},
+]
+
+
+def tableau_objetivos():
+    objetivos = []
+    for o in TABLEAU_OBJETIVOS:
+        url = os.getenv(o["env"], "")
+        objetivos.append({"id": o["id"], "numero": o["numero"], "titulo": o["titulo"],
+                          "pregunta": o["pregunta"], "embed_url": url, "publicado": bool(url)})
+    return objetivos
 
 
 class Handler(SimpleHTTPRequestHandler):
@@ -37,7 +63,7 @@ class Handler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/integraciones":
             return self.send_json({"powerbi": {"embed_url": POWER_BI_EMBED_URL, "dw": dw_status()},
                                    "mcp": {"activo": True, "ia_configurada": bool(os.getenv("OPENAI_API_KEY")), "modelo": OPENAI_MODEL},
-                                   "tableau": {"activo": bool(TABLEAU_EMBED_URL), "embed_url": TABLEAU_EMBED_URL}})
+                                   "tableau": {"objetivos": tableau_objetivos()}})
         if parsed.path == "/api/chat/status":
             return self.send_json({"ok": True, "ia_configurada": bool(os.getenv("OPENAI_API_KEY")),
                                    "modelo": OPENAI_MODEL, "mcp": True})

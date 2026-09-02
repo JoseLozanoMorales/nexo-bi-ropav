@@ -18,7 +18,12 @@
       <button data-view="entrega">08&nbsp; Estado de entregas</button>
       <div class="nav-label">HERRAMIENTAS BI</div>
       <button class="tool powerbi" data-view="powerbi">Power BI</button>
-      <button class="tool tableau" data-view="tableau">Tableau <small>Próximamente</small></button>
+      <div class="nav-label">TABLEAU · 5 OBJETIVOS</div>
+      <button class="tool tableau" data-view="tableau-ventas">1&nbsp; Ventas</button>
+      <button class="tool tableau" data-view="tableau-inventario">2&nbsp; Inventario</button>
+      <button class="tool tableau" data-view="tableau-canal">3&nbsp; Canal</button>
+      <button class="tool tableau" data-view="tableau-productos">4&nbsp; Productos</button>
+      <button class="tool tableau" data-view="tableau-region">5&nbsp; Región</button>
       <button class="tool mcp" data-view="adaptable">IA + MCP <small id="aiNavStatus">Configurar</small></button>
     </nav>
     <div class="mcp-status"><i></i><div><b>PostgreSQL conectado</b><small>RopaV · datos reales</small></div></div>
@@ -36,17 +41,14 @@
       <article class="report-card"><div class="card-head"><div><small>REPORTE POWER BI SERVICE</small><h2>Dashboard embebido</h2></div><a id="openPowerBI" target="_blank" rel="noopener">Abrir en Power BI ↗</a></div><iframe id="powerBIFrame" title="Reporte de Power BI" allowfullscreen></iframe><div id="powerBIEmpty" class="empty-report hidden"><h2>Configura el reporte de Power BI</h2><p>Define <code>POWER_BI_EMBED_URL</code> con el enlace seguro del reporte.</p></div></article>
     </section>
     <section id="tableauView" class="integration-view hidden">
-      <article class="integration-hero"><div><small>TABLEAU · CONEXIÓN EN VIVO</small><h2>Objetivos analíticos conectados a PostgreSQL</h2><p>Cada hoja de Tableau consulta el esquema <b>public</b> en vivo: una venta nueva se refleja sin pasos de sincronización adicionales.</p></div><a id="openTableau" class="primary" target="_blank" rel="noopener">Abrir en Tableau ↗</a></article>
-      <div class="integration-status"><article><small>OBJETIVOS DEFINIDOS</small><strong>7</strong><span>uno por hoja del tablero</span></article><article><small>OBJETIVOS PUBLICADOS</small><strong id="tableauReady">1</strong><span>distribución geográfica por provincia</span></article><article><small>MODO RECOMENDADO</small><strong>Conexión en vivo</strong><span>PostgreSQL · puerto 5433</span></article></div>
-      <article class="report-card"><div class="card-head"><div><small>REPORTE TABLEAU PUBLIC</small><h2>Distribución geográfica de ventas por provincia</h2></div></div><iframe id="tableauFrame" title="Reporte de Tableau" allowfullscreen></iframe><div id="tableauEmpty" class="empty-report hidden"><h2>Configura el reporte de Tableau</h2><p>Define <code>TABLEAU_EMBED_URL</code> con el enlace público del dashboard.</p></div></article>
-      <article class="report-card"><div class="card-head"><div><small>SIGUIENTE ITERACIÓN</small><h2>Objetivos pendientes de publicar</h2></div></div><ul class="tableau-pending">
-        <li>Tendencia de ventas en el tiempo</li>
-        <li>Desempeño de ventas por canal</li>
-        <li>Categorías y productos con mayor y menor rotación</li>
-        <li>Segmentación de clientes por frecuencia, recencia y valor</li>
-        <li>Nivel de inventario y riesgo de quiebre de stock</li>
-        <li>Cumplimiento de entregas</li>
-      </ul></article>
+      <article class="integration-hero"><div><small>TABLEAU · CONEXIÓN EN VIVO</small><h2 id="tableauHeroTitle">Objetivo de Tableau</h2><p id="tableauHeroPregunta">Cada dashboard de Tableau consulta el esquema <b>public</b> en vivo: una venta nueva se refleja sin pasos de sincronización adicionales.</p></div><a id="openTableau" class="primary" target="_blank" rel="noopener">Abrir en Tableau ↗</a></article>
+      <article class="report-card"><div class="card-head"><div><small>REPORTE TABLEAU PUBLIC</small><h2 id="tableauCardTitle">—</h2></div></div><iframe id="tableauFrame" title="Reporte de Tableau" allowfullscreen></iframe><div id="tableauEmpty" class="empty-report hidden"><h2>Este dashboard todavía no está publicado</h2><p>Construilo en Tableau Desktop con la query de <code>tableau/queries.sql</code> y definí su variable de entorno para verlo aquí.</p></div></article>
+      <article class="report-card"><div class="card-head"><div><small>GUÍA DE CONSTRUCCIÓN</small><h2>KPIs y gráficas sugeridas para este objetivo</h2></div></div>
+        <div class="tableau-guide">
+          <div><b>Tarjetas KPI (mín. 4-5)</b><ul id="tableauMetricas"></ul></div>
+          <div><b>Gráficas (mín. 4-5)</b><ul id="tableauGraficas"></ul></div>
+        </div>
+      </article>
     </section>
     <section id="kpis" class="kpis"></section>
     <section id="standardView" class="grid">
