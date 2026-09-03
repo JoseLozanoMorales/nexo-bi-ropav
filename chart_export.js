@@ -20,8 +20,8 @@ function chartExportLines(ctx, text, width) {
   return lines;
 }
 
-function chartExportCanvas(chart) {
-  const width = 1200, margin = 48, inner = width - margin * 2;
+function chartExportCanvas(chart, exportWidth = 1200) {
+  const width = exportWidth, margin = width < 800 ? 24 : 48, inner = width - margin * 2;
   const plot = document.createElement('canvas');
   plot.dataset.renderWidth = String(inner);
   // Use the same renderer (including objective-specific overrides) as the chat.

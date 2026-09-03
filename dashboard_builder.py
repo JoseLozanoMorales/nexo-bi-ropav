@@ -3,7 +3,7 @@ import re
 import unicodedata
 from copy import deepcopy
 from mcp_server import call_tool
-from semantic_analytics import chart_contract
+from semantic_analytics import chart_contract, query_semantic
 from objective_dashboards import detect_objective, build_objective_dashboard
 
 PALETTE=["#11a99a","#ff9f68","#56c5d0","#8576d4","#e57b9b","#f2c14e","#4f86c6","#72b01d","#d95d39","#6c5b7b"]
@@ -60,11 +60,19 @@ VALID_METRICS={"ingresos","utilidad","unidades"}
 VALID_TYPES={"bar","line","area","pie","doughnut","scatter"}
 
 def _planned_dashboard(filters,plan):
- summary=_query("resumen",filters); values=dict(summary["indicadores"])
+ if filters.get("personalizado"):
+  values={}
+  for key in ("ingresos","utilidad","margen","transacciones","unidades","clientes"):
+   rows=query_semantic(["personalizado"],key,filters,2)["datos"]
+   values[key]=rows[0]["valor"] if rows else 0
+ else:
+  summary=_query("resumen",filters); values=dict(summary["indicadores"])
  values["ticket_promedio"]=values["ingresos"]/values["transacciones"] if values["transacciones"] else 0
  values["unidades_por_venta"]=values["unidades"]/values["transacciones"] if values["transacciones"] else 0
  requested=list(dict.fromkeys(plan.get("kpis") or []))[:6]
- if len(requested)<3: requested=["ingresos","transacciones","clientes"]
+ for fallback in ('ingresos','transacciones','clientes'):
+  if len(requested)>=3:break
+  if fallback not in requested:requested.append(fallback)
  kpis=[{"label":KPI_LABELS[key],"value":values.get(key,0),"format":KPI_FORMATS[key]} for key in requested if key in KPI_LABELS]
  charts=[chart_contract(item,filters) for item in (plan.get("charts") or [])[:6]]
  if not charts: raise ValueError("El plan no produjo gráficos compatibles con la capa semántica")
@@ -75,11 +83,16 @@ def _fallback_plan(prompt):
  text=_plain(prompt); charts=[]
  mapping=[("gener",["genero"],"doughnut"),("categoria",["categoria"],"bar"),("producto",["producto"],"bar"),("canal",["canal"],"doughnut"),("region",["region"],"bar"),("provincia",["provincia"],"bar"),("client",["cliente"],"bar"),("segment",["segmento_cliente"],"doughnut"),("talla",["talla"],"bar"),("color",["color_principal"],"bar"),("pago",["metodo_pago"],"doughnut"),("promocion",["promocion"],"bar")]
  metric="margen" if "margen" in text else "utilidad" if "utilidad" in text else "unidades" if any(x in text for x in ("unidades","mas vendido")) else "ingresos"
+ if "producto" in text and "region" in text:
+  charts.append({"dimensions":["region","producto"],"metric":metric,"type":"bar","orientation":"horizontal","title":"","limit":100})
  if any(x in text for x in ("mensual","evolucion","tendencia")): charts.append({"dimensions":["mes"],"metric":metric,"type":"line","orientation":"vertical","title":"","limit":100})
  for token,dimensions,kind in mapping:
-  if token in text: charts.append({"dimensions":dimensions,"metric":metric,"type":kind,"orientation":"horizontal" if kind=="bar" else "vertical","title":"","limit":20})
+  if token in ("producto","region") and "producto" in text and "region" in text: continue
+  matched=bool(re.search(r"\bgeneros?\b",text)) if token=="gener" else token in text
+  if matched: charts.append({"dimensions":dimensions,"metric":metric,"type":kind,"orientation":"horizontal" if kind=="bar" else "vertical","title":"","limit":20})
  if not charts: charts=[{"dimensions":["mes"],"metric":"ingresos","type":"line","orientation":"vertical","title":"","limit":100},{"dimensions":["producto"],"metric":"ingresos","type":"bar","orientation":"horizontal","title":"","limit":10}]
- return {"title":"Dashboard dinámico","kpis":["ingresos","utilidad","margen","transacciones","unidades","clientes"],"charts":charts[:6]}
+ title="Productos personalizados más vendidos por región" if "producto" in text and "personaliz" in text and "region" in text else "Dashboard dinámico"
+ return {"title":title,"kpis":["ingresos","utilidad","margen","transacciones","unidades","clientes"],"charts":charts[:6]}
 def _inventory_sales_dashboard(filters,prompt):
  summary=_query("resumen",filters); products=_query("producto",filters); categories=_query("categoria",filters); trend=_query("tendencia",filters); inventory=_query("inventario",{})
  sold_names={str(row.get("etiqueta","")) for row in products["datos"]}; stock_rows=[row for row in inventory["datos"] if str(row.get("etiqueta","")) in sold_names]

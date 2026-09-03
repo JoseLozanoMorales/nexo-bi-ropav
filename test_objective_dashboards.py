@@ -8,10 +8,11 @@ import objective_dashboards as o
 
 
 class ObjectiveTests(unittest.TestCase):
-    def test_all_titles_and_full_objectives_route(self):
+    def test_titles_require_explicit_reference_request(self):
         for number, item in o.OBJECTIVES.items():
-            self.assertEqual(o.detect_objective('Genera dashboard ' + item['title']), number)
-            self.assertEqual(o.detect_objective('Crea un dashboard: ' + item['objective']), number)
+            self.assertIsNone(o.detect_objective('Genera dashboard ' + item['title']))
+            self.assertIsNone(o.detect_objective('Crea un dashboard: ' + item['objective']))
+            self.assertEqual(o.detect_objective('Recrea el dashboard oficial de Power BI: ' + item['objective']), number)
             self.assertEqual(o.detect_objective(f'Recrea el objetivo {number}'), number)
 
     def test_unrelated_and_ambiguous_are_not_forced(self):

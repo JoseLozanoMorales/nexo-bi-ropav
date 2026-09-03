@@ -103,9 +103,18 @@ def plain(text):
     return "".join(c for c in unicodedata.normalize("NFKD", str(text).lower()) if not unicodedata.combining(c))
 
 
+def official_request(text):
+    text=plain(text)
+    if re.search(r'\b(?:propon|inventa|sugiere)\w*.*objetivos|objetivos.*\b(?:nuevos|distintos|diferentes)\b|\b(?:no|sin)\s+(?:uses?\s+|usar\s+)?(?:los\s+)?objetivos',text):
+        return False
+    return bool(re.search(r'\bobjetivo\s*(?:numero\s*|n[º°.]?\s*|#\s*)?[1-6]\b|\b(?:jhinson|power\s*bi|pbit|oficiales?|predefinidos?)\b',text))
+
 def detect_objective(text):
     """Conservative routing; unrelated dashboards retain the generic planner."""
     text = plain(text)
+    # Topics alone never authorize a reference dashboard.
+    if not official_request(text):
+        return None
     if re.search(r"\b(sustituye|reemplaza|unicamente|exactamente)\b",text):
         return None
     ids = set(re.findall(r"(?:objetivo|dashboard|tablero|pagina)\s*(?:numero\s*|n[º°.]?\s*|#\s*)?([1-6])\b", text))
@@ -113,12 +122,14 @@ def detect_objective(text):
         return int(next(iter(ids)))
     if len(ids) > 1:
         return None
+    if re.search(r"personaliz",text) and re.search(r"tendencia mensual|evolucion mensual",text):
+        return None
     matches = []
     patterns = {1: r"estacionalidad semanal|fin(?:es)? de semana|dias laborables",
                 2: r"tendencia mensual|evolucion mensual|meses de mayor y menor demanda",
                 3: r"desempeno geografico|marketing regional|region.*categor|region.*ingres",
                 4: r"segmentacion de rentabilidad|(?:cliente|segmento).*rentab|(?:cliente|segmento).*margen",
-                5: r"personalizad|personalizacion",
+                5: r"(?:personalizad|personalizacion).*(?:versus|vs\.?|frente a|compar\w*).*(?:estandar)|(?:estandar).*(?:versus|vs\.?|frente a|compar\w*).*(?:personalizad|personalizacion)|ampliar esa linea de negocio",
                 6: r"retorno de promociones|promocion(?:es)?.*(?:rentab|margen|retorno|mantener|ajustar|descontinuar)"}
     for number, pattern in patterns.items():
         if re.search(pattern, text): matches.append(number)

@@ -27,7 +27,7 @@ const fs=require('node:fs/promises');
    const [download]=await Promise.all([page.waitForEvent('download'),panel.getByText('Descargar definición JSON',{exact:true}).click()]);
    const jsonPath=`${out}/objetivo-${i}.json`;await download.saveAs(jsonPath);
    const spec=JSON.parse(await fs.readFile(jsonPath,'utf8'));assert.equal(spec.objective_id,i);
-   const [png]=await Promise.all([page.waitForEvent('download'),panel.getByText('Descargar PNG',{exact:true}).click()]);
+   const [png]=await Promise.all([page.waitForEvent('download'),panel.locator('.dashboard-download').click()]);
    await png.saveAs(`${out}/objetivo-${i}-export.png`);
    console.log(`Objetivo ${i}: UI, tabla/gráficos, JSON y PNG OK`);
   }

@@ -1,0 +1,21 @@
+const {chromium}=require('playwright');const assert=require('node:assert/strict');const fs=require('node:fs/promises');
+(async()=>{const browser=await chromium.launch({channel:'chrome',headless:true});try{
+ const page=await browser.newPage({viewport:{width:1280,height:900}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto('http://127.0.0.1:8000');await page.locator('[data-view="adaptable"]').click();
+ const chart={type:'pie',title:'Ingresos por canal',labels:['A','B'],colors:['#11a99a','#ff9f68'],datasets:[{label:'Ingresos',values:[100,200],color:'#11a99a'}],source:'Prueba sintética',filters:{desde:'2025-01-01'},semantic:{modelo:'ventas',dimensiones:['canal'],metrica:'ingresos'}};
+ const donut={...chart,type:'doughnut'};
+ const response=await page.request.post('http://127.0.0.1:8000/api/chat',{data:{messages:[{role:'assistant',content:'',chart},{role:'assistant',content:'',chart:donut},{role:'user',content:'Descarga ambos'}]}});
+ assert(response.ok());const answer=await response.json();assert.deepEqual(answer.dashboard.charts.map(c=>c.type),['pie','doughnut']);
+ await page.evaluate(a=>addChat('assistant',a.text+'\n\nParámetros de la consulta:\n{"desde":"2025-01-01"}','',null,a.dashboard),answer);
+ assert(await page.locator('.chat-bubble').last().evaluate(b=>b.lastElementChild.classList.contains('chat-technical')));
+ const [download]=await Promise.all([page.waitForEvent('download'),page.locator('.dashboard-download').last().click()]);
+ await fs.mkdir('tmp/prueba10-fix',{recursive:true});await download.saveAs('tmp/prueba10-fix/both.zip');
+ const forecast={...chart,type:'line',title:'Pronóstico de ingresos — prueba',labels:['2026-01','2026-02','2026-03'],datasets:[{label:'Total',values:[100,120,140],color:'#11a99a'}],value_format:'currency',forecast:{intervals:[100,120,140].map((v,i)=>({periodo:`2026-0${i+1}`,serie:'Total',estimado:v,inferior:v-30,superior:v+30}))}};
+ await page.evaluate(c=>addChat('assistant','Estimación.\n\nParámetros de la consulta:\n{"horizonte_meses":3}','',c),forecast);
+ const [png]=await Promise.all([page.waitForEvent('download'),page.locator('.chart-download').last().click()]);await png.saveAs('tmp/prueba10-fix/forecast.png');
+ assert(await page.locator('.chart-legend').last().innerText().then(s=>s.includes('incertidumbre')));
+ assert.equal(errors.length,0);
+ const version=await page.request.get('http://127.0.0.1:8000/api/version');assert((await version.json()).version);
+ await page.route('**/api/version',r=>r.fulfill({json:{version:'new-test-version'}}));await page.evaluate(()=>checkApplicationVersion());await page.locator('#versionNotice').waitFor();
+ assert((await page.content()).includes('?v='));console.log('PASS: selección de ambos, ZIP, parámetros tras visuales, pronóstico, versión y ausencia de errores JS');
+}finally{await browser.close()}})().catch(e=>{console.error(e);process.exitCode=1});

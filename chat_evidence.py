@@ -11,6 +11,10 @@ def plain(text):
 
 def explicit_dates(text):
     text = plain(text)
+    quarter=re.search(r'\b(primer|primero|segundo|tercer|tercero|cuarto)\s+trimestre\s+(?:de(?:l)?\s+)?(20\d{2})\b',text)
+    if quarter:
+        name,year=quarter.groups(); start,end={'primer':(1,3),'primero':(1,3),'segundo':(4,6),'tercer':(7,9),'tercero':(7,9),'cuarto':(10,12)}[name]
+        return {'desde':f'{year}-{start:02d}-01','hasta':f'{year}-{end:02d}-{31 if end in (3,12) else 30}'}
     months = dict(zip('enero febrero marzo abril mayo junio julio agosto septiembre octubre noviembre diciembre'.split(), range(1,13)))
     def iso(day, month, year):
         try:

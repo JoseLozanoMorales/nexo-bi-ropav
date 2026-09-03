@@ -10,7 +10,9 @@ COPY responsive.css responsive.js ./
 COPY chat_tables.js chat_tables.css ./
 COPY chat_evidence.py ./
 COPY chart_export.js ./
+COPY ui_fixes.js ./
 COPY visual_interpretation.py ./
+COPY forecasting.py response_ordering.py ./
 COPY app.py db.py mcp_server.py ai_chat.py dashboard_builder.py recommendations.py semantic_analytics.py statistical_charts.py index.html app.js dashboard.js styles.css integrations.css chat.css ./
 COPY ["PROGRAMA EMPRESARIAL", "PROGRAMA EMPRESARIAL"]
 EXPOSE 8000

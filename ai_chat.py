@@ -10,7 +10,8 @@ from semantic_analytics import chart_contract, query_semantic
 from weekly_analysis import SALE_CRITERION, weekly_text
 from mcp_server import respond
 from dashboard_builder import build_dashboard, _planned_dashboard
-from objective_dashboards import detect_objective
+from objective_dashboards import detect_objective, official_request
+from forecasting import forecast_chart
 from semantic_analytics import DIMENSIONS as SEMANTIC_DIMENSIONS, MEASURES as SEMANTIC_MEASURES
 MODEL=os.getenv("OPENAI_MODEL","gpt-5-mini")
 logger=logging.getLogger("nexo_bi.tools")
@@ -25,23 +26,27 @@ Para totales incluyendo canceladas, comparar estados o consultar canceladas, usa
 Fecha real actual en Colombia: {_today()}. Distingue siempre la fecha real de consulta de la fecha máxima disponible en los datos.
 La última fecha con registros NO equivale a hoy. Para preguntas con hoy o a día de hoy consulta también consultar_periodos.
 Di: a fecha actual X, con datos disponibles hasta Y. Ventas de hoy significa sólo X; a día de hoy significa acumulado hasta X. Nunca escribas que a día de hoy equivale al último registro Y; di que la consulta llega hasta X y que no existen registros posteriores a Y."""
-SYSTEM="""Eres Nexo BI, analista de la tienda RopaV. Responde en espanol claro y conciso. Para cualquier cifra del negocio usa herramientas y nunca inventes valores. Elige la dimension apropiada. Para fechas disponibles usa consultar_periodos. Para productos mas vendidos usa dimension producto y orden unidades; para clientes individuales con mas compras usa dimension cliente_individual, orden unidades y el limite solicitado; nunca sustituyas clientes individuales por segmentos; para mayor facturacion usa orden ingresos. Distingue región de provincia: región sólo puede ser Costa, Sierra, Amazonía o Insular; provincia es Pichincha, Guayas, Azuay u otra provincia. Nunca sustituyas una por la otra. No envies region, provincia o canal cuando el usuario no los especifique; nunca uses Todos o Todas como valor de filtro. Copia exactamente filtros e indicadores y nunca afirmes que no hay ventas si transacciones es mayor que cero, cita como fuente PostgreSQL RopaV, explica el hallazgo y una recomendacion. Los importes de la base son USD. Puedes combinar consultas. Para preguntas sobre nombres de tablas, esquemas, columnas, campos o relaciones usa siempre consultar_esquema y responde con los metadatos reales; no digas que careces de acceso al esquema. Si el usuario pide un gráfico, gráfica o visualización, consulta inmediatamente la dimensión necesaria con consultar_analitica y no solicites confirmacion para consultas o graficos de solo lectura y no preguntes si desea generarlo: la aplicación lo mostrará en esa misma respuesta. Para histogramas del importe de ventas usa siempre consultar_distribucion_ventas y nunca consultar_analitica. Respeta exactamente el tipo solicitado: barras verticales u horizontales, líneas, área, pastel, dona/anillo o dispersión. No sustituyas un gráfico de pastel por barras. Cuando el usuario pida una recomendación de ropa o producto usa siempre recomendar_productos antes de responder. Recomienda SKU concretos disponibles, indicando producto, SKU, precio, stock, talla y color. Basa la justificación sólo en los datos devueltos y marca como inferencia cualquier adecuación deducida del nombre o categoría; nunca inventes material, transpirabilidad, grosor o temporada. Para registrar una venta consulta primero el catalogo, recopila todos los datos, resume la operacion y pide confirmacion explicita. Solo despues de que el usuario confirme claramente llama registrar_venta con confirmado_por_usuario=true. Nunca adivines identificadores. Mantén el contexto conversacional: expresiones como este año, ese año, el mismo periodo, ese trimestre o allí heredan los filtros y referentes establecidos en turnos anteriores; si el turno anterior fijó 2025, este año en el siguiente turno se refiere a 2025 y no al año calendario actual."""
+SYSTEM="""Eres Nexo BI, analista de la tienda RopaV. Responde en espanol claro y conciso. Para cualquier cifra del negocio usa herramientas y nunca inventes valores. Elige la dimension apropiada. Para fechas disponibles usa consultar_periodos. Para productos mas vendidos usa dimension producto y orden unidades; para clientes individuales con mas compras usa dimension cliente_individual, orden unidades y el limite solicitado; nunca sustituyas clientes individuales por segmentos; para mayor facturacion usa orden ingresos. Distingue región de provincia: región sólo puede ser Costa, Sierra, Amazonía o Insular; provincia es Pichincha, Guayas, Azuay u otra provincia. Nunca sustituyas una por la otra. Para regiones registradas o existentes en la base usa consultar_regiones y el catálogo maestro; sólo interpreta regiones con actividad cuando el usuario diga con ventas. No envies region, provincia o canal cuando el usuario no los especifique; nunca uses Todos o Todas como valor de filtro. Presenta primero la respuesta, hallazgos y recomendaciones; coloca filtros, indicadores y demás parámetros técnicos exclusivamente al final. Nunca afirmes que no hay ventas si transacciones es mayor que cero, cita como fuente PostgreSQL RopaV. Los importes de la base son USD. Puedes combinar consultas. Para preguntas sobre nombres de tablas, esquemas, columnas, campos o relaciones usa siempre consultar_esquema y responde con los metadatos reales; no digas que careces de acceso al esquema. Si el usuario pide un gráfico, gráfica o visualización, consulta inmediatamente la dimensión necesaria con consultar_analitica y no solicites confirmacion para consultas o graficos de solo lectura y no preguntes si desea generarlo: la aplicación lo mostrará en esa misma respuesta. Para histogramas del importe de ventas usa siempre consultar_distribucion_ventas y nunca consultar_analitica. Respeta exactamente el tipo solicitado: barras verticales u horizontales, líneas, área, pastel, dona/anillo o dispersión. No sustituyas un gráfico de pastel por barras. Cuando el usuario pida una recomendación de ropa o producto usa siempre recomendar_productos antes de responder. Recomienda SKU concretos disponibles, indicando producto, SKU, precio, stock, talla y color. Basa la justificación sólo en los datos devueltos y marca como inferencia cualquier adecuación deducida del nombre o categoría; nunca inventes material, transpirabilidad, grosor o temporada. Para registrar una venta consulta primero el catalogo, recopila todos los datos, resume la operacion y pide confirmacion explicita. Solo despues de que el usuario confirme claramente llama registrar_venta con confirmado_por_usuario=true. Nunca adivines identificadores. Mantén el contexto conversacional: expresiones como este año, ese año, el mismo periodo, ese trimestre o allí heredan los filtros y referentes establecidos en turnos anteriores; si el turno anterior fijó 2025, este año en el siguiente turno se refiere a 2025 y no al año calendario actual."""
 
 def _continuation_message(text):
  plain=_plain_text(text).strip()
  tokens=r"(?:si|no|[12]|procede|hazlo|adelante|genera(?:lo)?|muestralo|muestrame(?:lo)?|continua|de acuerdo)"
  if re.fullmatch(rf"\s*{tokens}(?:[\s,!.]+{tokens})*[.!\s]*",plain,re.I): return True
- return len(plain.split())<=10 and bool(re.search(r"\b(agrega(?:lo)?|anade(?:lo)?|incluye(?:lo)?|filtra(?:lo)?|aplica(?:lo)?|usa(?:lo)?)\b",plain))
+ return bool(re.search(r"\b(agrega(?:lo)?|anade(?:lo)?|incluye(?:lo)?|filtra(?:lo)?|aplica(?:lo)?|usa(?:lo)?|"
+   r"ponlo|proyecta(?:lo)?|pronostica(?:lo)?|descarga(?:lo)?|exporta(?:lo)?|comparalos?|cambia(?:lo)?|desglosa(?:lo)?|"
+   r"limita|restringe|solo|ahora|mismo|misma)\b|^(?:de|en|por)\s+(?:dona|pastel|barras?|lineas?|area|provincia|region|canal|producto|categoria|genero)\b",plain))
 
-SYSTEM += "\nPara objetivos oficiales de Power BI consulta consultar_objetivos_dashboards: 1 semanal, 2 mensual, 3 región, 4 clientes, 5 personalización, 6 promociones. Si piden recrear uno usa generar_dashboard_objetivo, sin sustituirlo por un dashboard genérico. Son recreaciones funcionales, no archivos PBIX. Conserva advertencias y explica las fórmulas devueltas, no otras fórmulas de utilidad. No equipares margen de promociones con ROI causal."
+SYSTEM += "\nLos objetivos predefinidos están aislados: sólo consulta su catálogo o recrea uno cuando el usuario lo pida explícitamente como objetivo numerado, oficial, predefinido, de Jhinson o de Power BI. Una coincidencia temática NO es una solicitud del catálogo. Para proponer objetivos nuevos, consulta consultar_modelo_semantico y consultar_esquema antes de responder. Propón análisis propios, no enumeres el catálogo oficial. No inventes canales ni valores de categorías; consúltalos o habla de la dimensión sin ejemplos inventados. No prometas conversión, rotación de inventario o causalidad si faltan sus denominadores e historial. Numera cada propuesta con 1., 2., etc., con título y definición concreta; al seleccionar una, usa esa propuesta de la conversación, nunca su número como ID oficial."
 
 def _request_text(messages):
  users=[str(m.get("content","")) for m in messages if m.get("role")=="user"]
  if not users: return ""
  current=users[-1]
  if not _continuation_message(current): return current
- # Las continuaciones se resuelven sólo con peticiones del usuario.
- return " ".join(users[-5:])
+ # Stop at the most recent independent request, not an arbitrary history window.
+ start=len(users)-1
+ while start>0 and _continuation_message(users[start]):start-=1
+ return " ".join(users[start:])
 
 def _current_date_args(messages,args):
  users=[str(m.get("content","")) for m in messages if m.get("role")=="user"]
@@ -131,7 +136,7 @@ def _chart_request(messages):
  affirmative=_continuation_message(current)
  relevant=current
  if affirmative and not re.search(r"\b(barras?|columnas?|donas?|anillos?|pasteles?|pastel|lineas?|areas?|histogramas?)\b",current):
-  previous=next((m.get("chart") for m in reversed(messages[:-1]) if m.get("chart")),None)
+  previous=_prior_chart(messages)
   if previous:return True,previous.get("orientation")=="horizontal",previous.get("type")
   relevant=_plain_text(" ".join(users[-4:]))
  horizontal=bool(re.search(r"\bhorizontales?\b",relevant))
@@ -196,6 +201,8 @@ def _advanced_filters(messages):
   if _plain_text(province) in text: args["provincia"]=province
  for channel in ("WhatsApp","Redes Sociales","Tienda Física"):
   if _plain_text(channel) in text: args["canal"]=channel
+ if re.search(r"\b(productos?|ventas?|lineas?)\s+personalizad",text): args["personalizado"]="Sí"
+ if re.search(r"\b(productos?|ventas?|lineas?)\s+(?:estandar|no personalizad)",text): args["personalizado"]="No"
  return args
 
 def _advanced_chart(messages):
@@ -235,7 +242,7 @@ def _chart(result,messages):
  metric_match=re.search(r"\b(ingresos|transacciones|unidades|utilidad|margen|ticket promedio)\b",current)
  metric=metric_match.group(1).replace(" ","_") if metric_match else None
  if not metric:
-  previous=next((m.get("chart") for m in reversed(messages[:-1]) if m.get("chart")),{})
+  previous=_prior_chart(messages) or {}
   metric=previous.get("semantic",{}).get("metrica")
  if not d.get("dimensiones") and d.get("dimension") in SEMANTIC_DIMENSIONS and metric:
   d=query_semantic([d["dimension"]],metric,d.get("filtros",{}),500)
@@ -255,6 +262,9 @@ def _chart(result,messages):
  kind=requested_type or ("line" if dim=="tendencia" else "bar")
  colors=["#11a99a","#ff9f68","#56c5d0","#8576d4","#e57b9b","#f2c14e","#4f86c6","#72b01d","#d95d39","#6c5b7b","#2a9d8f","#e76f51"][:len(rows)]
  chart={"type":kind,"orientation":"horizontal" if horizontal and kind=="bar" else "vertical","title":titles.get(dim,"Análisis de datos"),"labels":[str(r.get("etiqueta","")) for r in rows],"datasets":sets,"colors":colors,"value_format":fmt,"source":"PostgreSQL RopaV","filters":deepcopy(filters)}
+ semantic_dimensions={"tendencia":["mes"],"producto":["producto"],"categoria":["categoria"],"region":["region"],"provincia":["provincia"],"canal":["canal"],"cliente":["segmento_cliente"],"cliente_individual":["cliente"]}
+ semantic_metric="unidades" if order=="unidades" else "utilidad" if order=="utilidad" else metric or "ingresos"
+ if dim in semantic_dimensions:chart["semantic"]={"modelo":"ventas","dimensiones":semantic_dimensions[dim],"metrica":semantic_metric}
  if dim=="histograma_ventas":chart.update(statistics=deepcopy(d.get("estadisticas",{})),bins=deepcopy(rows))
  return chart
 def _validated_text(text,evidence):
@@ -264,6 +274,26 @@ def _validated_text(text,evidence):
   rows=evidence.get("datos",[]); lines=[f"{i+1}. {r.get('etiqueta','Dato')}: {r.get('unidades',0)} unidades, {r.get('ingresos',0):,.2f} USD" for i,r in enumerate(rows[:10])]
   return "La consulta si encontro ventas. Filtros: "+json.dumps(evidence.get("filtros",{}),ensure_ascii=False)+f". Indicadores: {k.get('transacciones')} transacciones, {k.get('unidades')} unidades, {k.get('ingresos'):,.2f} USD."+"\n\nResultados:\n"+"\n".join(lines)
  return text
+
+def _ground_personalization(messages,args):
+ args=dict(args)
+ text=_plain_text(_request_text(messages))
+ if not re.search(r"personaliz|estandar",text):args.pop('personalizado',None)
+ elif re.search(r"compar|frente|versus|\bvs\b",text) and 'estandar' in text:args.pop('personalizado',None)
+ return args
+
+def _semantic_result_text(data):
+ from semantic_analytics import DISPLAY
+ dims=data['dimensiones']; metric=data.get('etiqueta_metrica',data['metrica'])
+ def cell(value):return str(value).replace('|','/').replace('\n',' ')
+ headers=[DISPLAY.get(d,d).capitalize() for d in dims]+[metric]
+ lines=['Resultado de la consulta a PostgreSQL RopaV.','','| '+' | '.join(headers)+' |','| '+' | '.join(['---']*len(headers))+' |']
+ for row in data.get('datos',[]):
+  cells=[row.get('etiqueta','')]+([row.get('serie','')] if len(dims)>1 else [])+[format(row['valor'],',.2f')]
+  lines.append('| '+' | '.join(cell(v) for v in cells)+' |')
+ if not data.get('datos'):lines=['No hay datos para los filtros solicitados. Fuente: PostgreSQL RopaV.']
+ lines+=['','Parámetros de la consulta:',json.dumps({'dimensiones':dims,'metrica':data['metrica'],**data.get('filtros',{})},ensure_ascii=False)]
+ return '\n'.join(lines)
 
 def _recommendation_request(messages):
  users=[str(m.get("content","")) for m in messages if m.get("role")=="user"]
@@ -297,6 +327,125 @@ def _dashboard_request(messages):
  if _interpretation_request(messages):return False
  text=_plain_text(_request_text(messages))
  return bool(re.search(r"\b(dashboards?|tableros?|panel(?:es)?(?:\s+ejecutivos?)?)\b",text))
+
+def _region_catalog_request(messages):
+ current=_plain_text(next((m.get("content","") for m in reversed(messages) if m.get("role")=="user"),""))
+ if "provincia" in current and "region" not in current:return None
+ context=_plain_text(_request_text(messages))
+ if not re.search(r"\bregion(?:es)?\b",context): return None
+ catalog_intent=bool(re.search(r"\b(registrad|exist|base de datos|catalog|todas? las regiones|cuantas regiones)\w*\b",context))
+ sales_intent=bool(re.search(r"\b(regiones? con ventas|ventas? por region|actividad por region)\b",context))
+ for message in messages:
+  if message.get('role')!='user':continue
+  intent=_plain_text(str(message.get('content','')))
+  if re.search(r"(?:unicamente|solo|cuales).*?(?:tuvieron|tienen|con) ventas",intent):sales_intent=True
+  elif re.search(r"sin ventas|no tienen ventas|todas las regiones",intent):sales_intent=False
+ if not (catalog_intent or sales_intent): return None
+ args={"incluir_ventas":sales_intent or "cancelad" in current,"incluir_canceladas":"cancelad" in current}
+ args.update(explicit_dates(current))
+ result=mcp_request("tools/call",{"name":"consultar_regiones","arguments":args},5)
+ data=result.get("structuredContent",{}); rows=data.get("regiones",[])
+ if sales_intent: rows=[row for row in rows if row.get("todas" if args['incluir_canceladas'] else 'no_canceladas',0)>0]
+ label='Regiones con ventas' if sales_intent else 'Regiones registradas en el catálogo maestro'
+ lines=[f"{label}: **{len(rows)}**.",""]
+ if args["incluir_ventas"]:
+  lines.extend(["| Región | Provincias | Ventas totales | Canceladas | No canceladas |","|---|---:|---:|---:|---:|"])
+  for row in rows: lines.append(f"| {row['region']} | {row['provincias']} | {row.get('todas',0)} | {row.get('canceladas',0)} | {row.get('no_canceladas',0)} |")
+  if not sales_intent:lines.append("\nLas regiones con cero ventas se conservan porque la consulta parte del catálogo maestro, no de la tabla de ventas.")
+ else:
+  lines.extend(f"- {row['region']} ({row['provincias']} provincias registradas)" for row in rows)
+ lines.append("\nFuente: PostgreSQL RopaV.")
+ lines.append("\nParámetros de la consulta:\n"+json.dumps(args,ensure_ascii=False,sort_keys=True))
+ return {"text":"\n".join(lines),"tools":[{"name":"consultar_regiones","arguments":args,"error":False,"cached":False}],"model":"Análisis local","chart":None,"dashboard":None}
+
+def _prior_chart(messages):
+ prior=next((m for m in reversed(messages[:-1]) if m.get('role')=='assistant'),{})
+ return prior.get('chart') if isinstance(prior.get('chart'),dict) else None
+
+def _active_filters(messages):
+ filters=dict((_prior_chart(messages) or {}).get('filters') or {})
+ for message in messages:
+  if message.get('role')!='user':continue
+  content=str(message.get('content',''))
+  if not _continuation_message(content):filters={}
+  dates=explicit_dates(content)
+  year=re.findall(r'\b(20\d{2})\b',content)
+  if dates:filters.update(dates)
+  elif year:filters.update(desde=year[-1]+'-01-01',hasta=year[-1]+'-12-31')
+ return filters
+
+def _chart_followup(messages):
+ current=_plain_text(next((m.get("content","") for m in reversed(messages) if m.get("role")=="user"),""))
+ prior=_prior_chart(messages); semantic=(prior or {}).get("semantic") or {}
+ if not prior or not _continuation_message(current):return None
+ if re.search(r"\b(dashboard|tablero|panel|predic|pronostic|proyecc|descarg|export|explica|interpret)\w*\b",current):return None
+ dimensions=list(semantic.get("dimensiones") or []); metric=semantic.get("metrica","transacciones" if prior.get('type')=='histogram' else "ingresos")
+ kind=_chart_request([{'role':'user','content':current}])[2] or prior.get('type')
+ if prior.get('type')=='histogram' and kind=='histogram':
+  args={**dict(prior.get('filters') or {}),**_active_filters(messages)}
+  args={k:v for k,v in args.items() if k in ('desde','hasta','intervalos')}
+  result=mcp_request('tools/call',{'name':'consultar_distribucion_ventas','arguments':args},9)
+  chart=_chart(result,[{'role':'user','content':'histograma'}])
+  return {'text':_histogram_text(result.get('structuredContent',{})),'tools':[{'name':'consultar_distribucion_ventas','arguments':args}],'model':'Análisis local','chart':chart,'dashboard':None}
+ if semantic.get('modelo') not in (None,'ventas'):return None
+ dimension_aliases=(("provincia",r"\bprovincia\b"),("region",r"\bregion\b"),("canal",r"\bcanal\b"),("producto",r"\bproducto\b"),("categoria",r"\bcategoria\b"),("genero",r"\bgenero\b"))
+ explicit_dimension=next((key for key,pattern in dimension_aliases if re.search(r"(?:\bpor\b|\bsegun\b)\s+(?:la\s+|el\s+)?"+pattern[2:],current)),None)
+ if re.search(r'\btipos? de clientes?\b',current):explicit_dimension='tipo_cliente'
+ elif re.search(r'\bsegmentos? de clientes?\b',current):explicit_dimension='segmento_cliente'
+ elif re.search(r'\bmes(?:es)?\b',current):explicit_dimension='mes'
+ else:
+  for key in SEMANTIC_DIMENSIONS:
+   phrase=key.replace('_',' ')
+   if re.search(r'\b(?:por|segun)\s+(?:los? |las? )?'+phrase+r'(?:es|s)?\b',current):explicit_dimension=key;break
+ metric_aliases=(("ingresos",r"\bingresos?\b"),("utilidad",r"\butilidad\b"),("unidades",r"\bunidades?\b"),("transacciones",r"\btransacciones?\b"),("margen",r"\bmargen\b"),("clientes",r"\bclientes?\b"))
+ metric_mentions=[(match.start(),key) for key,pattern in metric_aliases for match in re.finditer(pattern,current)]
+ explicit_metric=max(metric_mentions)[1] if metric_mentions else None
+ if explicit_dimension in ('tipo_cliente','segmento_cliente'):
+  explicit_metric='transacciones' if 'ventas' in current else ('ingresos' if 'ingresos' in current else None)
+ if explicit_dimension=='mes' and 'ventas' in current:explicit_metric='transacciones'
+ type_requested=_chart_request(messages)[2]
+ personalized=bool(re.search(r"\bsolo\s+personaliz|\bpersonalizad",current))
+ if not any((explicit_dimension,explicit_metric,type_requested,personalized)):return None
+ if explicit_dimension:dimensions=[explicit_dimension]
+ if explicit_metric:metric=explicit_metric
+ if not dimensions:return None
+ filters={**dict(prior.get('filters') or {}),**_active_filters(messages)}
+ filters={k:v for k,v in filters.items() if k in ('desde','hasta','region','provincia','canal','personalizado')}
+ if personalized:filters["personalizado"]="Sí"
+ result=query_semantic(dimensions,metric,filters,500 if dimensions and dimensions[0] in ("mes","dia") else 30)
+ ranking=re.search(r'\b(?:top\s+|los\s+|las\s+)?(\d+)\s+(?:meses|productos|clientes|categorias|regiones|provincias)\b.*\bmas\b',current)
+ if ranking:
+  result=deepcopy(result);result['datos']=sorted(result['datos'],key=lambda r:(-r['valor'],str(r['etiqueta'])))[:int(ranking.group(1))]
+ chart=chart_contract({"dimensions":dimensions,"metric":metric,"type":type_requested or prior.get("type","bar"),"orientation":"horizontal" if _chart_request(messages)[1] else prior.get("orientation","vertical")},filters,result)
+ if ranking:chart['title']=f"Top {ranking.group(1)} · "+chart['title'];chart['description']+=' Porcentajes calculados sobre los elementos seleccionados.'
+ text=f"Gráfico actualizado: {chart['title']}. Fuente: PostgreSQL RopaV.\n\nParámetros de la consulta:\n"+json.dumps({"dimensiones":dimensions,"metrica":metric,**filters},ensure_ascii=False,sort_keys=True)
+ return {"text":text,"tools":[{"name":"consultar_semantica","arguments":{"dimensiones":dimensions,"metrica":metric,**filters},"error":False,"cached":False}],"model":"Análisis local","chart":chart,"dashboard":None}
+
+def _chart_action_followup(messages):
+ current=_plain_text(next((m.get("content","") for m in reversed(messages) if m.get("role")=="user"),""))
+ if re.search(r'\b(descarg\w*|export\w*)\b',current) and re.search(r'\b(ambos|ambas|los dos|las dos)\b',current):
+  selected=[]
+  for message in reversed(messages[:-1]):
+   if message.get('role')!='assistant':continue
+   candidate=message.get('chart')
+   if isinstance(candidate,dict) and candidate not in selected:selected.append(deepcopy(candidate))
+   if len(selected)==2:break
+  if len(selected)!=2:raise SafeRequestError('No encuentro dos gráficos distintos en esta conversación. Genera ambos antes de pedir su descarga.')
+  return {'text':'Conservé ambos gráficos. Descarga el ZIP con los dos PNG o usa el botón individual de cada gráfico.','tools':[],'model':'Análisis local','chart':None,'dashboard':{'title':'Gráficos seleccionados','subtitle':'Copias de los dos gráficos anteriores, sin recalcular datos','kpis':[],'charts':list(reversed(selected)),'export_collection':True}}
+ latest=next((m for m in reversed(messages[:-1]) if m.get('role')=='assistant'),{})
+ if latest.get('dashboard') and re.search(r'\b(descarga|descargalo|exporta|exportalo)\b',current):
+  return {'text':'Aquí está el mismo dashboard. Usa Descargar PNG.','tools':[],'model':'Análisis local','chart':None,'dashboard':deepcopy(latest['dashboard'])}
+ prior=_prior_chart(messages)
+ if not prior:return None
+ if re.search(r"\b(descarga|descargalo|exporta|exportalo)\b",current):
+  return {"text":"Aquí está el mismo gráfico. Usa Descargar PNG; se conservaron sus datos, filtros y tipo.","tools":[],"model":"Análisis local","chart":deepcopy(prior),"dashboard":None}
+ if re.search(r"\b(ponlo|pasalo|conviertelo|hazlo)\b.*\b(dashboard|tablero|panel)\b",current):
+  semantic=prior.get("semantic") or {}
+  if semantic.get("modelo")!="ventas":return None
+  metric=semantic.get("metrica","ingresos"); plan={"title":"Dashboard de "+prior.get("title","ventas"),"kpis":[metric,"transacciones","unidades"],"charts":[{"dimensions":semantic["dimensiones"],"metric":metric,"type":prior.get("type","bar"),"orientation":prior.get("orientation","vertical"),"title":prior.get("title",""),"limit":max(20,len(prior.get("labels",[])))}]}
+  spec=_planned_dashboard(dict(prior.get("filters") or {}),plan)
+  return {"text":"Convertí el gráfico anterior en un dashboard conservando su consulta y filtros.","tools":[],"model":"Análisis local","chart":None,"dashboard":spec}
+ return None
 def _dashboard_filters(messages):
  text=_request_text(messages); filters=_advanced_filters(messages)
  plain=_plain_text(text); named_regions=[name for name in ("Costa","Sierra","Amazonía","Insular") if _plain_text(name) in plain]
@@ -307,6 +456,88 @@ def _dashboard_filters(messages):
   years=re.findall(r"\b(20\d{2})\b",text)
   if years: filters.update({"desde":years[-1]+"-01-01","hasta":years[-1]+"-12-31"})
  return filters
+
+def _prediction_request(messages):
+ if _interpretation_request(messages): return False
+ current=next((m.get('content','') for m in reversed(messages) if m.get('role')=='user'),'')
+ if re.search(r"\b(predic\w*|pronostic\w*|proyecc\w*|proyecta\w*|estimacion futura|futur[oa]s?)\b",_plain_text(current)):return True
+ latest=next((m for m in reversed(messages[:-1]) if m.get('role')=='assistant'),{})
+ if re.search(r'\b(crea|genera|haz)\w*\b.*\bgrafic',_plain_text(current)):return False
+ return _continuation_message(current) and bool((latest.get('chart') or {}).get('forecast') or (latest.get('dashboard') or {}).get('forecast'))
+
+def _prediction_args(messages):
+ text=_plain_text(_request_text(messages)); filters=_advanced_filters(messages)
+ current=_plain_text(next((m.get('content','') for m in reversed(messages) if m.get('role')=='user'),''))
+ # A bare future year is a target, not an empty historical filter.
+ filters.pop("desde",None); filters.pop("hasta",None)
+ based=re.search(r"(?:basad\w* en|historic[oa] de|(?:usando|utilizando)(?: los)? datos de|con(?: los)? datos de)\s*(20\d{2})(?:\s*(?:y|a|hasta|-)\s*(20\d{2}))?",text)
+ if based:
+  filters["desde"]=based.group(1)+"-01-01"; filters["hasta"]=(based.group(2) or based.group(1))+"-12-31"
+ metric=next((name for name,pattern in (("margen",r"\bmargen\b"),("ticket_promedio",r"ticket promedio"),("transacciones",r"transacciones?|numero de ventas"),("utilidad",r"utilidad|ganancia"),("unidades",r"unidades|mas vendid"),("clientes",r"clientes"),("ingresos",r"ingresos|facturacion|ventas")) if re.search(pattern,text)),"ingresos")
+ aliases=(("region",r"\bregion(?:es)?\b"),("provincia",r"\bprovincias?\b"),("canal",r"\bcanal(?:es)?\b"),("producto",r"\bproductos?\b"),("categoria",r"\bcategorias?\b"),("genero",r"\bgeneros?\b"),("personalizado",r"\bpersonalizad\w*\b"),("tipo_cliente",r"tipo de cliente"),("segmento_cliente",r"segmentos? de clientes?"),("metodo_pago",r"metodos? de pago"))
+ segment=next((name for name,pattern in aliases if re.search(pattern,text)),None)
+ current_segment=next((name for name,pattern in aliases if re.search(pattern,current)),None)
+ if current_segment:segment=current_segment
+ mentions=[(m.start(),name) for name in ('ingresos','utilidad','unidades','transacciones','clientes','margen') for m in re.finditer(r'\b'+name+r'\b',current)]
+ if mentions:metric=max(mentions)[1]
+ if segment=="personalizado" and filters.get("personalizado"): segment="region" if "region" in text else "producto"
+ number_words={"un":1,"uno":1,"dos":2,"tres":3,"cuatro":4,"cinco":5,"seis":6,"siete":7,"ocho":8,"nueve":9,"diez":10,"once":11,"doce":12}
+ horizon_match=re.search(r"\b(\d+|"+"|".join(number_words)+r")\s+mes(?:es)?\b",current) or re.search(r"\b(\d+|"+"|".join(number_words)+r")\s+mes(?:es)?\b",text)
+ horizon=(int(horizon_match.group(1)) if horizon_match.group(1).isdigit() else number_words[horizon_match.group(1)]) if horizon_match else (1 if re.search(r"\b(?:proximo|siguiente)\s+mes\b",text) else 3)
+ if not 1<=horizon<=24:raise SafeRequestError("El pronóstico admite entre 1 y 24 meses. Indica un horizonte dentro de ese rango.")
+ target_text=text[:based.start()]+text[based.end():] if based else text
+ years=[int(y) for y in re.findall(r"\b(20\d{2})\b",target_text)]
+ if years and not horizon_match:
+  periods=mcp_request("tools/call",{"name":"consultar_periodos","arguments":{}},4).get("structuredContent",{}).get("rango",{})
+  last=periods.get("hasta","")[:7]
+  if last:
+   last_year,last_month=map(int,last.split("-")); target=max(years)
+   if target>=last_year: horizon=max(horizon,(target-last_year)*12+12-last_month)
+ if horizon>24:raise SafeRequestError("El año solicitado requiere más de 24 meses de proyección desde los últimos datos. Indica un horizonte de hasta 24 meses.")
+ return {"metrica":metric,"segmento":segment,"horizonte_meses":horizon,**filters}
+
+def _prediction_kind(messages):
+ advanced=_advanced_chart_kind(messages)
+ if advanced:return "line" if advanced=="multi_line" else advanced
+ requested=_chart_request(messages)[2]
+ return requested or "line"
+
+def _prediction_answer(messages, dashboard=False):
+ args=_prediction_args(messages)
+ if _prediction_kind(messages) in ("pie","doughnut","heatmap","boxplot","histogram","pareto","stacked_bar","scatter") and not args.get("segmento"):
+  args["segmento"]="region"
+ result=mcp_request("tools/call",{"name":"consultar_pronostico","arguments":args},4)
+ if result.get("isError"): raise RuntimeError(result.get("content",[{"text":"No se pudo calcular el pronóstico"}])[0]["text"])
+ data=result["structuredContent"]; chart=forecast_chart(data,_prediction_kind(messages))
+ if chart.get("type")=="bar" and _chart_request(messages)[1]: chart["orientation"]="horizontal"
+ trace={"name":"consultar_pronostico","arguments":args,"error":False,"cached":False}
+ text=(f"Pronóstico calculado para {data['horizonte_meses']} mes(es). {data['metodo']}\n\n"
+       f"Limitación: {data['limitacion']}\n\nFuente: PostgreSQL RopaV.\n\n"
+       "Parámetros de la consulta:\n"+json.dumps(args,ensure_ascii=False,sort_keys=True))
+ if not dashboard:return {"text":text,"tools":[trace],"model":"Análisis predictivo local","chart":chart,"dashboard":None}
+ prompt=_request_text(messages)
+ spec={'title':'Proyección de ventas','kpis':[],'charts':[],'filters':data.get('filtros',{}),'subtitle':'Valores estimados, no ventas realizadas · Fuente: PostgreSQL RopaV'}
+ predictive_charts=[chart]; traces=[trace]
+ requested_metrics=[name for name in ('ingresos','utilidad','unidades','transacciones','clientes','margen') if re.search(r'\b'+name+r'\b',_plain_text(prompt))]
+ for metric in requested_metrics:
+  if metric==args['metrica']:continue
+  extra_args={**args,'metrica':metric}
+  extra=mcp_request('tools/call',{'name':'consultar_pronostico','arguments':extra_args},4)
+  if extra.get('isError'):raise SafeRequestError('No se pudo calcular el pronóstico de '+metric+'. No se presenta el dashboard como completo.')
+  predictive_charts.append(forecast_chart(extra['structuredContent'],'line'))
+  traces.append({'name':'consultar_pronostico','arguments':extra_args,'error':False,'cached':False})
+ spec["charts"]=(spec.get("charts") or [])[:max(0,6-len(predictive_charts))]+predictive_charts
+ periods=sorted({r['periodo'] for r in data['datos']})
+ spec['subtitle']+=f" · Periodo proyectado: {periods[0]} a {periods[-1]}"
+ for predicted in predictive_charts:
+  rows=predicted['forecast']['intervals']; metric=predicted['semantic']['metrica']; total=sum(r['estimado'] for r in rows)
+  if metric in ('ingresos','utilidad','unidades','transacciones'):
+   spec['kpis'].append({'label':DASHBOARD_LABELS[metric]+' estimados (periodo proyectado)','value':round(total,2),'format':'currency' if metric in ('ingresos','utilidad') else 'number'})
+ text+='\n\nMétricas proyectadas: '+', '.join(c['semantic']['metrica'] for c in predictive_charts)+'.'
+ spec["title"]="Dashboard predictivo — "+spec.get("title","Ventas").removeprefix("Dashboard ")
+ spec["subtitle"]=spec.get("subtitle","")+" · Incluye proyección estadística"
+ spec["forecast"]={"method":data["metodo"],"limitation":data["limitacion"],"horizon_months":data["horizonte_meses"]}
+ return {"text":text,"tools":traces,"model":"Análisis predictivo local","chart":None,"dashboard":spec}
 
 DASHBOARD_LABELS={"ingresos":"Ingresos","utilidad":"Utilidad","margen":"Margen","transacciones":"Transacciones","unidades":"Unidades","clientes":"Clientes","ticket_promedio":"Ticket promedio","unidades_por_venta":"Unidades por venta"}
 DASHBOARD_FORMULAS={
@@ -322,7 +553,8 @@ DASHBOARD_FORMULAS={
 def _dashboard_explanation(messages):
  users=[str(m.get("content","")) for m in messages if m.get("role")=="user"]
  if not users or not re.search(r"\b(medidas?|metricas?|formulas?|calculos?|filtros?)\b",_plain_text(users[-1])):return None
- prior=next((m.get("dashboard") for m in reversed(messages[:-1]) if isinstance(m.get("dashboard"),dict)),None)
+ latest=next((m for m in reversed(messages[:-1]) if m.get('role')=='assistant'),{})
+ prior=latest.get('dashboard')
  if not prior:return None
  if prior.get("objective_id") and prior.get("measure_definitions"):
   lines=[f"Objetivo {prior['objective_id']}: {prior.get('objective','')}","Medidas de la recreación funcional de Power BI:"]
@@ -369,36 +601,52 @@ Cada elemento de una lista de gráficos es independiente: no transfieras dimensi
 Selecciona de 3 a 6 KPI y de 2 a 6 gráficos. No inventes ni reemplaces una dimensión no disponible."""
 
 def _dashboard_plan(prompt):
- if not os.getenv("OPENAI_API_KEY"): return None
+ if not os.getenv("OPENAI_API_KEY"):
+  constrained=_constrain_dashboard_plan(prompt,{'title':'Dashboard de ventas','kpis':['ingresos','unidades','margen'],'charts':[]})
+  return constrained if constrained['charts'] else None
  try:
   response=OpenAI().responses.create(model=MODEL,instructions=DASHBOARD_PLANNER,input=prompt,text={"format":{"type":"json_schema","name":"dashboard_plan","strict":True,"schema":DASHBOARD_PLAN_SCHEMA}})
   return _constrain_dashboard_plan(prompt,json.loads(response.output_text))
  except Exception as error:
   logger.exception("No se pudo crear el plan dinámico del dashboard: %s",error)
-  return None
+  raise SafeRequestError('No se pudo planificar el dashboard solicitado. No se ha sustituido por una plantilla; vuelve a intentarlo.') from error
 
 def _constrain_dashboard_plan(prompt,plan):
  # Enforce independently specified panels, without borrowing dimensions from neighbours.
  from semantic_analytics import DISPLAY
- match=re.search(r"graficos?\s*:\s*([^.!?]+)",_plain_text(prompt))
+ prompt_text=_plain_text(prompt)
+ if all(token in prompt_text for token in ("producto","personaliz","region")) and re.search(r"mas vendid|ranking|top",prompt_text):
+  result=deepcopy(plan)
+  requested={"dimensions":["region","producto"],"metric":"unidades","type":"bar","orientation":"horizontal","title":"Productos personalizados más vendidos en cada región","limit":100}
+  remaining=[item for item in result.get("charts",[]) if item.get("dimensions")!=["region","producto"]]
+  result["charts"]=[requested]+remaining[:5]
+  return result
+ match=re.search(r"(?:graficos?\s*:|\bcon\s+)([^.!?]+)",prompt_text)
  if not match:return plan
  clauses=re.split(r"\s*[,;]\s*|\s+y\s+",match.group(1))
  expected=[]
  for clause in clauses:
   dimensions=[key for key,label in DISPLAY.items() if re.search(r"\b"+re.escape(_plain_text(label))+r"(?:s|es)?\b",clause)]
   if re.search(r"\bmensual(?:es)?\b",clause):dimensions.insert(0,"mes")
+  if re.search(r"\bpor mes\b",clause) and 'mes' not in dimensions:dimensions.insert(0,'mes')
   if "genero" in dimensions and "cliente" in dimensions:dimensions.remove("cliente")
   if "dia_semana" in dimensions and "dia" in dimensions:dimensions.remove("dia")
   for specific,generic in (("canal_preferido","canal"),("tipo_cliente","cliente"),("segmento_cliente","cliente")):
    if specific in dimensions and generic in dimensions:dimensions.remove(generic)
   dimensions=list(dict.fromkeys(dimensions))
-  metric=next((key for key,pattern in (("margen",r"margen"),("ticket_promedio",r"ticket promedio"),("transacciones",r"transaccion(?:es)?"),("utilidad",r"utilidad"),("unidades",r"unidades"),("ingresos",r"ingresos|ventas")) if re.search(pattern,clause)),None)
+  metric=next((key for key,pattern in (("margen",r"margen"),("ticket_promedio",r"ticket promedio"),("transacciones",r"transaccion(?:es)?"),("utilidad",r"utilidad"),("unidades",r"unidades|mas vendid"),("ingresos",r"ingresos|ventas")) if re.search(pattern,clause)),None)
+  if 'producto' in dimensions and 'region' in dimensions:dimensions=['region','producto']
   if not metric or not 1<=len(dimensions)<=2:return plan
   expected.append((dimensions,metric))
- if len(expected)!=len(plan.get("charts",[])):return plan
+ if not 2<=len(expected)<=6:return plan
  result=deepcopy(plan)
- for item,(dimensions,metric) in zip(result["charts"],expected):
-  item.update(dimensions=dimensions,metric=metric)
+ result['charts']=[]
+ for dimensions,metric in expected:
+  item=next((deepcopy(c) for c in plan.get('charts',[]) if c.get('dimensions')==dimensions and c.get('metric')==metric),{})
+  if len(dimensions)==2 and dimensions[-1] in ('producto','sku','cliente') and re.search(r'mas vendid|ranking|\btop\b',prompt_text):
+   top=re.search(r'\b(?:top|primeros?|los)\s+(\d+|cinco|diez)\b',prompt_text)
+   item['top_per_group']=(int(top.group(1)) if top.group(1).isdigit() else {'cinco':5,'diez':10}[top.group(1)]) if top else 5
+  result['charts'].append({**item,'dimensions':dimensions,'metric':metric,'type':item.get('type') or ('line' if dimensions[0] in ('mes','dia','trimestre','anio') else 'bar'),'orientation':item.get('orientation') or ('vertical' if dimensions[0] in ('mes','dia','trimestre','anio') else 'horizontal'),'title':'','limit':100 if len(dimensions)==2 or dimensions[0] in ('mes','dia','trimestre','anio') else item.get('limit',12)})
  return result
 
 def _edit_dashboard(prior,current):
@@ -443,10 +691,92 @@ def mcp_request(method,params=None,request_id=1):
  answer=respond({"jsonrpc":"2.0","id":request_id,"method":method,"params":params or {}})
  if not answer or "error" in answer: raise RuntimeError(str(answer))
  return answer["result"]
-def openai_tools():
- return [{"type":"function","name":t["name"],"description":t["description"],"parameters":t["inputSchema"]} for t in mcp_request("tools/list")["tools"]]
+def _official_request(messages):
+ return official_request(_request_text(messages))
+
+def openai_tools(messages=None):
+ official=_official_request(messages or [])
+ return [{"type":"function","name":t["name"],"description":t["description"],"parameters":t["inputSchema"]} for t in mcp_request("tools/list")["tools"] if official or t['name'] not in ('consultar_objetivos_dashboards','generar_dashboard_objetivo')]
+
+def _resolve_proposed_objective(messages):
+ """Resolve a numbered selection from the assistant's list, not the reference catalog."""
+ current=str(messages[-1].get('content','')) if messages else ''
+ text=_plain_text(current)
+ if re.search(r'jhinson|power\s*bi|oficial|predefinid',text):return messages
+ match=re.search(r'\b(primero?|segundo|tercero?|cuarto|quinto|sexto)\s+objetivo\b|\bobjetivo\s*(?:numero\s*)?([1-6])\b',text)
+ if not match:return messages
+ number=int(match.group(2)) if match.group(2) else {'primer':1,'primero':1,'segundo':2,'tercer':3,'tercero':3,'cuarto':4,'quinto':5,'sexto':6}[match.group(1)]
+ # Only the most recent proposal exchange establishes a local numbered list.
+ for index in range(len(messages)-2,-1,-1):
+  previous=messages[index]
+  if previous.get('role')!='user':continue
+  if not re.search(r'\b(?:propon|propone|inventa|sugiere|dame)\w*.*objetivos',_plain_text(previous.get('content',''))):return messages
+  replies='\n'.join(str(m.get('content','')) for m in messages[index+1:-1] if m.get('role')=='assistant')
+  headings=list(re.finditer(r'(?m)^\s*(?:#{1,3}\s*)?(?:\*\*)?(\d+)[.)]\s+',replies))
+  for pos,heading in enumerate(headings):
+   if int(heading.group(1))==number:
+    end=headings[pos+1].start() if pos+1<len(headings) else len(replies)
+    selected=replies[heading.end():end].strip()
+    updated=deepcopy(messages)
+    updated[-1]['content']=re.sub(re.escape(match.group(0)), 'análisis propuesto', current, flags=re.I)+'\nDefinición seleccionada de esta conversación:\n'+selected
+    # Our proposals contain a human-readable, validated analysis definition.
+    # Preserve that exact definition; do not ask a second model to reinterpret it.
+    from semantic_analytics import DISPLAY, LABELS
+    definition=re.search(r'Analizar:\s*(.+?)\s+por\s+([^\n]+)',selected)
+    if definition:
+     metric_names={_plain_text(v):k for k,v in LABELS.items()};dim_names={_plain_text(v):k for k,v in DISPLAY.items()}
+     metrics=[metric_names.get(_plain_text(v.strip())) for v in definition.group(1).split(',')]
+     dims=[dim_names.get(_plain_text(v.strip().rstrip('.'))) for v in definition.group(2).split(' y ')]
+     if metrics and dims and all(metrics) and all(dims):
+      chronological=dims[0] in ('dia','mes','trimestre','anio')
+      updated[-1]['_proposed_plan']={'title':selected.splitlines()[0].strip('* '),'kpis':metrics,'charts':[{'dimensions':dims,'metric':m,'type':'line' if chronological else 'bar','orientation':'vertical' if chronological else 'horizontal','title':'','limit':100} for m in metrics]}
+    return updated
+  raise SafeRequestError('No encontré esa propuesta en la lista anterior. Indica su título para no sustituirla por un objetivo predefinido.')
+ return messages
+
+def _propose_objectives(current):
+ """Generate new, executable analysis proposals from verified capabilities, not templates."""
+ text=_plain_text(current)
+ if not re.search(r'\b(?:propon|inventa|sugiere|dame)\w*.*objetivos',text) or official_request(current):return None
+ words={'uno':1,'dos':2,'tres':3,'cuatro':4,'cinco':5,'seis':6,'siete':7,'ocho':8,'nueve':9,'diez':10}
+ match=re.search(r'\b(\d+|'+'|'.join(words)+r')\s+objetivos',text)
+ count=(int(match.group(1)) if match.group(1).isdigit() else words[match.group(1)]) if match else 5
+ if not 1<=count<=10:raise SafeRequestError('Puedo proponer de 1 a 10 objetivos por respuesta.')
+ traces=[]; evidence={}
+ for name in ('consultar_modelo_semantico','consultar_esquema'):
+  result=mcp_request('tools/call',{'name':name,'arguments':{}},8)
+  if result.get('isError'):raise SafeRequestError('No pude verificar las capacidades de la base para proponer objetivos.')
+  evidence[name]=result.get('structuredContent',result.get('content'))
+  traces.append({'name':name,'arguments':{},'error':False})
+ item={'type':'object','properties':{'title':{'type':'string'},'decision':{'type':'string'},'dimensions':{'type':'array','minItems':1,'maxItems':2,'items':{'type':'string','enum':list(SEMANTIC_DIMENSIONS)}},'metrics':{'type':'array','minItems':2,'maxItems':3,'items':{'type':'string','enum':list(SEMANTIC_MEASURES)}}},'required':['title','decision','dimensions','metrics'],'additionalProperties':False}
+ schema={'type':'object','properties':{'objectives':{'type':'array','minItems':count,'maxItems':count,'items':item}},'required':['objectives'],'additionalProperties':False}
+ instructions='Propón objetivos NUEVOS y variados de análisis, ajustados a la petición y a las capacidades verificadas. No tienes acceso ni debes reproducir el catálogo de objetivos oficiales. Cada propuesta debe poder ejecutarse exclusivamente con sus dimensiones y métricas seleccionadas. El título y decisión no pueden prometer conversión, cohortes, retención, LTV, ROI, rotación, cobertura, stock o causalidad: estas capacidades no están implementadas por el planificador. No inventes categorías, canales ni resultados. Las decisiones son posibilidades, no recomendaciones basadas en cifras. Evita repetir la misma combinación de dimensiones. Devuelve sólo el objeto solicitado.'
+ if not os.getenv('OPENAI_API_KEY'):raise SafeRequestError('Se requiere el proveedor de IA para proponer objetivos nuevos; no se ha usado una lista predefinida.')
+ response=OpenAI().responses.create(model=MODEL,instructions=instructions,input=current+'\nCapacidades verificadas:\n'+json.dumps(evidence,ensure_ascii=False),text={'format':{'type':'json_schema','name':'new_objectives','strict':True,'schema':schema}})
+ objectives=json.loads(response.output_text)['objectives']
+ lines=['Propuestas nuevas basadas en las dimensiones y métricas disponibles:']
+ from semantic_analytics import DISPLAY, LABELS
+ for i,obj in enumerate(objectives,1):
+  if re.search(r'conversi[oó]n|cohort|retenci[oó]n|\bltv\b|\broi\b|rotaci[oó]n|cobertura|\bstock\b|causal',obj['title']+' '+obj['decision'],re.I):
+   raise SafeRequestError('Una propuesta excedió las capacidades verificadas. No se presenta como ejecutable; vuelve a pedir las propuestas.')
+  dims=obj['dimensions'];metrics=obj['metrics']
+  if len(objectives)!=count or not 1<=len(dims)<=2 or any(d not in SEMANTIC_DIMENSIONS for d in dims) or any(m not in SEMANTIC_MEASURES for m in metrics):raise SafeRequestError('La propuesta no cumple las capacidades disponibles.')
+  definition=', '.join(LABELS[m] for m in metrics)+' por '+' y '.join(DISPLAY[d] for d in dims)
+  lines.append(f"{i}. {definition}\n   - Analizar: "+definition+'.\n   - Decisión que ayuda a evaluar: '+obj['decision'])
+ lines.append('Parámetros técnicos: propuestas sobre el modelo de ventas; no son hallazgos calculados. Fuente: esquema y modelo semántico de PostgreSQL RopaV.')
+ return {'text':'\n\n'.join(lines),'tools':traces,'model':MODEL,'chart':None,'dashboard':None}
 def ask(messages):
+ messages=_resolve_proposed_objective(messages)
  current=next((str(m.get("content","")) for m in reversed(messages) if m.get("role")=="user"),"")
+ proposals=_propose_objectives(current)
+ if proposals:return proposals
+ region_answer=_region_catalog_request(messages)
+ if region_answer:return region_answer
+ chart_action=_chart_action_followup(messages)
+ if chart_action:return chart_action
+ if _prediction_request(messages): return _prediction_answer(messages,_dashboard_request(messages))
+ chart_followup=_chart_followup(messages)
+ if chart_followup:return chart_followup
  interpreting=_interpretation_request(messages)
  has_visual=any(isinstance(m.get("chart"),dict) or isinstance(m.get("dashboard"),dict) for m in messages[:-1] if m.get("role")=="assistant")
  if interpreting and (has_visual or re.search(r"\b(grafic\w*|dashboard\w*|tablero\w*|histograma\w*|boxplot\w*|pareto\w*|mapas? de calor)\b",_plain_text(current))):
@@ -466,7 +796,8 @@ def ask(messages):
    if metric and not semantic.get("formulas") and metric in DASHBOARD_FORMULAS:text+="\nFórmula: "+DASHBOARD_FORMULAS[metric]
   return {"text":text,"tools":[],"model":"Análisis local","chart":None,"dashboard":None}
  date_override=explicit_dates(current)
- prior=next((m.get("dashboard") for m in reversed(messages[:-1]) if isinstance(m.get("dashboard"),dict)),None)
+ latest=next((m for m in reversed(messages[:-1]) if m.get('role')=='assistant'),{})
+ prior=latest.get('dashboard')
  if prior and re.search(r"\b(descarga\w*|exporta\w*)\b",_plain_text(current)):
   return {"text":"Aquí está el mismo dashboard. Usa Descargar PNG; se conservan sus datos, filtros y visualizaciones.","tools":[],"model":MODEL,"chart":None,"dashboard":deepcopy(prior)}
  if prior and re.search(r"\b(sustituye|reemplaza|cambia|aplica|quita)\b",_plain_text(current)):
@@ -483,7 +814,7 @@ def ask(messages):
   if result.get("isError"): raise RuntimeError(result.get("content",[{}])[0].get("text","No se pudo construir el dashboard"))
   spec=result["structuredContent"]
   return {"text":f"Dashboard del objetivo {objective_id}: {spec['objective']}\nRecreación funcional de Power BI con datos reales. Consulta las notas del panel para criterios y limitaciones.","tools":[{"name":"generar_dashboard_objetivo","arguments":args,"error":False}],"model":MODEL,"chart":None,"dashboard":spec}
- advanced=_advanced_chart(messages)
+ advanced=_advanced_chart(messages) if not _dashboard_request(messages) else None
  if advanced:return advanced
  if _recommendation_request(messages):
   args=_recommendation_args(messages); result=mcp_request("tools/call",{"name":"recomendar_productos","arguments":args},8); data=result.get("structuredContent",{})
@@ -498,20 +829,21 @@ def ask(messages):
    raise RuntimeError("La consulta del histograma devolvió datos, pero no se pudo construir la visualización")
   return {"text":_histogram_text(data),"tools":[{"name":"consultar_distribucion_ventas","arguments":args,"error":bool(result.get("isError")),"cached":False}],"model":MODEL,"chart":chart}
  if _dashboard_request(messages):
-  prompt=_request_text(messages); filters=_dashboard_filters(messages); plan=_dashboard_plan(prompt); spec=build_dashboard(filters,prompt=prompt,plan=plan)
+  prompt=_request_text(messages); filters=_dashboard_filters(messages); plan=messages[-1].get('_proposed_plan') or _dashboard_plan(prompt); spec=build_dashboard(filters,prompt=prompt,plan=plan)
   tools=[{"name":"consultar_semantica","arguments":{"dimensiones":chart["semantic"]["dimensiones"],"metrica":chart["semantic"]["metrica"],**filters},"error":False,"cached":False} for chart in spec["charts"] if chart.get("semantic")]
   text="Dashboard generado con datos de PostgreSQL RopaV."
   if "cancelad" in _plain_text(current):text+="\n"+SALE_CRITERION
   return {"text":text,"tools":tools,"model":MODEL,"chart":None,"dashboard":spec}
  if not os.getenv("OPENAI_API_KEY"): raise RuntimeError("OPENAI_API_KEY no esta configurada")
  client=OpenAI(); history=[{"role":m["role"],"content":str(m["content"])[:6000]} for m in messages[-12:] if m.get("role") in ("user","assistant")]
- response=client.responses.create(model=MODEL,instructions=_system_instructions(),input=history,tools=openai_tools(),parallel_tool_calls=False)
- used=[]; chart=None; evidence=None; last_data=None; tool_cache={}; repeated_calls={}; weekly_evidence=None; sale_criterion=None
+ response=client.responses.create(model=MODEL,instructions=_system_instructions(),input=history,tools=openai_tools(messages),parallel_tool_calls=False)
+ used=[]; chart=None; evidence=None; last_data=None; tool_cache={}; repeated_calls={}; weekly_evidence=None; sale_criterion=None; semantic_evidence=[]
  round_index=0
  while True:
   calls=[item for item in response.output if item.type=="function_call"]
   if not calls:
    answer=_validated_text(response.output_text,evidence)
+   if len(semantic_evidence)==1 and not evidence and not _chart_request(messages)[0] and semantic_evidence[0].get('dimensiones') and semantic_evidence[0].get('metrica'):answer=_semantic_result_text(semantic_evidence[0])
    if date_override and not evidence and any(t["name"]=="consultar_periodos" for t in used) and not any(t["name"] in ("consultar_semantica","consultar_cancelaciones") for t in used):
     # Coverage is not a reason to refuse a read-only query outside the available range.
     args={"dimension":"resumen",**_advanced_filters(messages),**date_override}
@@ -529,7 +861,10 @@ def ask(messages):
    return {"text":answer,"tools":used,"model":MODEL,"chart":chart}
   outputs=[]
   for call in calls:
+   if call.name in ('consultar_objetivos_dashboards','generar_dashboard_objetivo') and not _official_request(messages):
+    raise SafeRequestError('No se ejecutó un objetivo predefinido porque no fue solicitado explícitamente.')
    args=json.loads(call.arguments or "{}")
+   if call.name.startswith('consultar_'):args=_ground_personalization(messages,args)
    if call.name.startswith("consultar_") and call.name not in ("consultar_periodos","consultar_esquema","consultar_modelo_semantico","consultar_catalogo","consultar_objetivos_dashboards"):
     args.update(date_override)
    requested_type=_chart_request(messages)[2]; executed_name=call.name
@@ -550,6 +885,7 @@ def ask(messages):
     used.append({"name":executed_name,"arguments":args,"error":False,"cached":cached})
     return {"text":data["objective"],"tools":used,"model":MODEL,"chart":None,"dashboard":data}
    if data is not None: last_data=data
+   if executed_name=='consultar_semantica' and isinstance(data,dict) and not cached:semantic_evidence.append(data)
    if isinstance(data,dict):
     if data.get("criterio_ventas"): sale_criterion=data["criterio_ventas"]
     if data.get("estacionalidad_semanal"): weekly_evidence=data
@@ -560,4 +896,4 @@ def ask(messages):
     return {"text":_fallback_text(last_data,"se detuvo una llamada repetida"),"tools":used,"model":MODEL,"chart":chart,"recovered":True}
    outputs.append({"type":"function_call_output","call_id":call.call_id,"output":json.dumps(result.get("structuredContent",result.get("content",result)),ensure_ascii=False)})
   round_index+=1
-  response=client.responses.create(model=MODEL,instructions=_system_instructions(),previous_response_id=response.id,input=outputs,tools=openai_tools(),parallel_tool_calls=False)
+  response=client.responses.create(model=MODEL,instructions=_system_instructions(),previous_response_id=response.id,input=outputs,tools=openai_tools(messages),parallel_tool_calls=False)

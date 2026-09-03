@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import mimetypes
 import os
+import hashlib
+import re
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -12,9 +14,11 @@ from urllib.parse import parse_qs, urlparse
 from db import add_sale, catalog, dashboard, delete_sale, dw_status, init_db, sync_powerbi
 from ai_chat import MODEL as OPENAI_MODEL, ask as ask_ai
 from api_errors import validate_chat, public_error
+from response_ordering import parameters_last
 
 
 ROOT = Path(__file__).parent
+APP_BUILD = hashlib.sha256(b''.join(p.read_bytes() for p in sorted(ROOT.iterdir()) if p.suffix in ('.js','.css','.html','.py'))).hexdigest()[:16]
 POWER_BI_EMBED_URL = os.getenv("POWER_BI_EMBED_URL", "https://app.powerbi.com/reportEmbed?reportId=7602737b-4a3d-4489-b108-ac24ef5ebc8a&autoAuth=true&ctid=edd334f8-81c6-4062-ad3a-87668a1e074e")
 TABLEAU_EMBED_URL = os.getenv("TABLEAU_EMBED_URL", "")
 
@@ -37,6 +41,8 @@ class Handler(SimpleHTTPRequestHandler):
 
     def get_response(self):
         parsed = urlparse(self.path)
+        if parsed.path == '/api/version':
+            return self.send_json({'version': APP_BUILD})
         if parsed.path == "/api/dashboard":
             params = {k: v[0] for k, v in parse_qs(parsed.query).items()}
             return self.send_json(dashboard(params))
@@ -53,6 +59,11 @@ class Handler(SimpleHTTPRequestHandler):
         if not path.is_file() or ROOT not in path.resolve().parents or path.suffix.lower() not in {".html", ".js", ".css", ".png", ".jpg", ".jpeg", ".svg", ".ico", ".woff", ".woff2"}:
             return self.send_error(404)
         data = path.read_bytes()
+        if path.name == 'index.html':
+            html=data.decode('utf-8')
+            html=re.sub(r'((?:src|href)="[^"?]+\.(?:js|css))"',rf'\1?v={APP_BUILD}"',html)
+            html=html.replace('</head>',f'<script>window.APP_BUILD="{APP_BUILD}";</script></head>')
+            data=html.encode('utf-8')
         self.send_response(200)
         self.send_header("Content-Type", mimetypes.guess_type(path)[0] or "application/octet-stream")
         self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
@@ -74,7 +85,9 @@ class Handler(SimpleHTTPRequestHandler):
                     return self.send_json({"ok": False, "error": "La conversación supera el tamaño permitido. Inicia un chat nuevo."}, 413)
                 payload = json.loads(self.rfile.read(length))
                 messages = validate_chat(payload)
-                return self.send_json({"ok": True, **ask_ai(messages)})
+                answer=ask_ai(messages)
+                answer["text"]=parameters_last(answer.get("text",""))
+                return self.send_json({"ok": True, **answer})
             except Exception as exc:
                 body, status = public_error(exc)
                 return self.send_json(body, status)

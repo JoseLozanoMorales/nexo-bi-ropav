@@ -76,11 +76,11 @@ def query_semantic(dimensions,measure,filters=None,limit=12):
  if any(item not in DIMENSIONS for item in dimensions): raise ValueError("Dimensión no permitida")
  if measure not in MEASURES: raise ValueError("Métrica no permitida")
  filters=filters or {}; clauses=["v.estado_venta <> 'Cancelada'"]; values=[]
- mapping={"desde":("v.fecha_venta::date",">="),"hasta":("v.fecha_venta::date","<="),"region":("rg.nombre_region","="),"provincia":("pr.nombre","="),"canal":("cv.nombre_canal","=")}
+ mapping={"desde":("v.fecha_venta::date",">="),"hasta":("v.fecha_venta::date","<="),"region":("rg.nombre_region","="),"provincia":("pr.nombre","="),"canal":("cv.nombre_canal","="),"personalizado":("d.es_personalizado","=")}
  for key,(column,operator) in mapping.items():
   value=filters.get(key)
   if value and str(value).strip().casefold() not in ("todo","todos","toda","todas","all"):
-   clauses.append(f"{column} {operator} %s"); values.append(value)
+   clauses.append(f"{column} {operator} %s"); values.append(value if key!="personalizado" else str(value).strip().casefold() in ("si","sí","true","1","personalizado"))
  expressions=[DIMENSIONS[item] for item in dimensions]; select=[f"{expr} etiqueta" if i==0 else f"{expr} serie" for i,expr in enumerate(expressions)]
  chronological=dimensions[0] in ("dia","mes","trimestre","anio","dia_semana")
  order="1"+(",2" if len(dimensions)==2 else "") if chronological else "valor DESC"
@@ -106,8 +106,14 @@ PALETTE=["#11a99a","#ff9f68","#56c5d0","#8576d4","#e57b9b","#f2c14e","#4f86c6","
 
 def chart_contract(item,filters,result=None):
  dimensions=item.get("dimensions") or ([item["dimension"]] if item.get("dimension") else [])
- metric=item.get("metric","ingresos"); requested_limit=500 if dimensions[0] in ("dia","mes","trimestre","anio") else item.get("limit",12); result=result or query_semantic(dimensions,metric,filters,requested_limit); rows=result["datos"]
+ metric=item.get("metric","ingresos"); requested_limit=500 if item.get('top_per_group') or dimensions[0] in ("dia","mes","trimestre","anio") else item.get("limit",12); result=result or query_semantic(dimensions,metric,filters,requested_limit); rows=result["datos"]
  item=dict(item)
+ if item.get('top_per_group') and len(dimensions)==2:
+  if len(rows)>=500:raise ValueError('El ranking supera la capacidad de detalle. Filtra el periodo o grupo para no mostrar un ranking incompleto.')
+  top=max(1,min(int(item['top_per_group']),20));selected=[]
+  for group in sorted({str(r['etiqueta']) for r in rows}):
+   selected.extend(sorted((r for r in rows if str(r['etiqueta'])==group),key=lambda r:(-r['valor'],str(r['serie'])))[:top])
+  return {'type':'bar','orientation':'horizontal','title':f'Top {top} de {DISPLAY[dimensions[1]]} por {DISPLAY[dimensions[0]]}','description':f'Ranking independiente por {DISPLAY[dimensions[0]]}, ordenado por {LABELS[metric].lower()}. Se muestran hasta {top} por grupo.','labels':[str(r['etiqueta'])+' · '+str(r['serie']) for r in selected],'datasets':[{'label':LABELS[metric],'values':[r['valor'] for r in selected],'color':PALETTE[0]}],'colors':PALETTE,'value_format':result['formato'],'source':'PostgreSQL RopaV','filters':dict(filters or {}),'ranking':{'top_per_group':top,'rows':selected},'semantic':{'modelo':'ventas','dimensiones':dimensions,'metrica':metric}}
  if metric in ("margen","ticket_promedio","clientes") and item.get("type") in ("pie","doughnut"):
   item["type"]="bar"
   item["orientation"]="horizontal"

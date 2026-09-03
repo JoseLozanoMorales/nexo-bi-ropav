@@ -187,6 +187,37 @@ def catalog():
         "regiones":[r["nombre"] for r in _rows(conn,"SELECT nombre_region nombre FROM public.region ORDER BY id_region")],
         "provincias":[r["nombre"] for r in _rows(conn,"SELECT nombre FROM public.provincia ORDER BY nombre")]}
 
+def regions_catalog(include_sales=False, include_cancelled=False, desde=None, hasta=None):
+    """Return the master region catalog, optionally enriched with sale counts.
+
+    Master rows are kept even when they have no sales; this deliberately avoids
+    confusing geographical coverage with activity in the fact table.
+    """
+    with connect() as conn:
+        if not include_sales:
+            rows=_rows(conn,"""SELECT rg.id_region id,rg.nombre_region region,
+                COUNT(DISTINCT pr.id_provincia)::int provincias
+                FROM public.region rg LEFT JOIN public.provincia pr ON pr.id_region=rg.id_region
+                GROUP BY rg.id_region,rg.nombre_region ORDER BY rg.id_region""")
+        else:
+            clauses=[]; values=[]
+            if desde: clauses.append("v.fecha_venta::date >= %s"); values.append(desde)
+            if hasta: clauses.append("v.fecha_venta::date <= %s"); values.append(hasta)
+            date_filter=(" AND "+" AND ".join(clauses)) if clauses else ""
+            rows=_rows(conn,f"""SELECT rg.id_region id,rg.nombre_region region,
+                COUNT(DISTINCT pr.id_provincia)::int provincias,
+                COUNT(DISTINCT v.id_venta)::int todas,
+                COUNT(DISTINCT v.id_venta) FILTER (WHERE v.estado_venta='Cancelada')::int canceladas,
+                COUNT(DISTINCT v.id_venta) FILTER (WHERE v.estado_venta<>'Cancelada')::int no_canceladas
+                FROM public.region rg LEFT JOIN public.provincia pr ON pr.id_region=rg.id_region
+                LEFT JOIN public.ciudad ci ON ci.id_provincia=pr.id_provincia
+                LEFT JOIN public.zona z ON z.id_ciudad=ci.id_ciudad
+                LEFT JOIN public.clientes cl ON cl.id_zona=z.id_zona
+                LEFT JOIN public.ventas v ON v.id_cliente=cl.id_cliente{date_filter}
+                GROUP BY rg.id_region,rg.nombre_region ORDER BY rg.id_region""",values)
+        return {"fuente":"PostgreSQL RopaV","ambito":"catalogo_maestro","incluye_ventas":bool(include_sales),
+                "incluye_canceladas":bool(include_cancelled),"filtros":{"desde":desde,"hasta":hasta},"regiones":rows}
+
 def add_sale(data):
     required=("fecha","id_variante","id_cliente","id_canal","id_admin","id_metodo_pago","cantidad","precio")
     missing=[k for k in required if data.get(k) in (None,"")]
