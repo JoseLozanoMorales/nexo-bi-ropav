@@ -132,7 +132,11 @@ def chart_contract(item,filters,result=None):
    description+=(" %." if metric=="margen" else ((", "+format(leader["valor"]/total*100,".1f")+"% de lo mostrado"+(" cada uno." if len(leaders)>1 else ".")) if total and metric not in ("ticket_promedio","clientes") else "."))
   else: description="No se encontraron datos para los filtros solicitados."
  else:
-  series=list(dict.fromkeys(str(row["serie"]) for row in rows)); lookup={(str(row["etiqueta"]),str(row["serie"])):row["valor"] for row in rows}
-  datasets=[{"label":serie,"values":[lookup.get((label,serie),0) for label in labels],"color":PALETTE[i%len(PALETTE)]} for i,serie in enumerate(series)]
+  import colorsys
+  series=sorted({str(row['serie']) for row in rows}); lookup={(str(row["etiqueta"]),str(row["serie"])):row["valor"] for row in rows}
+  colors=['#'+''.join(f'{round(v*255):02x}' for v in colorsys.hsv_to_rgb((i*.61803398875)%1,.72,.72 if i%2 else .86)) for i in range(len(series))]
+  datasets=[{"label":serie,"values":[lookup.get((label,serie)) for label in labels],"color":colors[i]} for i,serie in enumerate(series)]
   description="Comparación de "+result["etiqueta_metrica"].lower()+" por "+DISPLAY[dimensions[0]]+" y "+DISPLAY[dimensions[1]]+"."
+  if any(v is None for d in datasets for v in d['values']):description+=' Los huecos indican combinaciones sin registros; no equivalen a cero.'
+ if 'promocion' in dimensions:description+=' Comparación descriptiva: no demuestra efectividad ni impacto causal de las promociones.'
  return {"type":item.get("type","bar"),"orientation":item.get("orientation","vertical"),"title":title,"description":description,"labels":labels,"datasets":datasets,"colors":PALETTE[:max(len(labels),len(datasets))],"value_format":result["formato"],"source":"PostgreSQL RopaV","filters":dict(filters or {}),"semantic":{"modelo":"ventas","dimensiones":dimensions,"metrica":metric}}

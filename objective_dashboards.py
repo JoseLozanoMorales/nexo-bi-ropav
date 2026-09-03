@@ -277,7 +277,7 @@ def build_objective_dashboard(number, filters=None):
     if number == 2:
         warnings.append("El KPI de crecimiento compara todo el periodo seleccionado con ese periodo desplazado un mes. La tabla calcula cada mes por separado. Un mes sin registros no se rellena con cero.")
     warnings += [SALE_CRITERION,
-        "Recreación funcional, no copia píxel a píxel. Fórmulas del PBIT aplicadas a datos actuales de public; la plantilla no contiene datos. Se excluyen canceladas aunque las medidas DAX originales no lo hacen explícitamente.",
+        "Recreación funcional, no copia píxel a píxel. Fórmulas de referencia aplicadas a datos actuales de public. Esta consulta excluye ventas canceladas; no determina los filtros aplicados en el dashboard actual de Power BI.",
         "Margen total = subtotal menos costo de producto, no beneficio neto. Se usa el costo actual disponible; no incluye todos los gastos operativos."]
     if not bounds["desde"]: warnings.insert(0, "No hay ventas no canceladas con estos filtros; N/D indica un agregado sin base, no un cero inventado.")
     return {"title": definition["title"], "subtitle": f"Objetivo {number} · {start or 'Sin datos'} a {end or 'Sin datos'} · PostgreSQL RopaV (public)",

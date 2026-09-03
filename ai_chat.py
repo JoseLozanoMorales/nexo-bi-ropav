@@ -762,6 +762,8 @@ def _propose_objectives(current):
   dims=obj['dimensions'];metrics=obj['metrics']
   if len(objectives)!=count or not 1<=len(dims)<=2 or any(d not in SEMANTIC_DIMENSIONS for d in dims) or any(m not in SEMANTIC_MEASURES for m in metrics):raise SafeRequestError('La propuesta no cumple las capacidades disponibles.')
   definition=', '.join(LABELS[m] for m in metrics)+' por '+' y '.join(DISPLAY[d] for d in dims)
+  if 'promocion' in dims:
+   obj['decision']='Comparar el comportamiento observado de estas métricas entre promociones; no permite atribuirles efectividad ni impacto causal.'
   lines.append(f"{i}. {definition}\n   - Analizar: "+definition+'.\n   - Decisión que ayuda a evaluar: '+obj['decision'])
  lines.append('Parámetros técnicos: propuestas sobre el modelo de ventas; no son hallazgos calculados. Fuente: esquema y modelo semántico de PostgreSQL RopaV.')
  return {'text':'\n\n'.join(lines),'tools':traces,'model':MODEL,'chart':None,'dashboard':None}

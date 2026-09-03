@@ -60,7 +60,30 @@ function drawGroupRanking(c,ch){
  vals.forEach((v,i)=>{ctx.fillStyle='#526177';ctx.textAlign='right';lines[i].forEach((line,j)=>ctx.fillText(line,left-10,y+steps[i]/2+(j-(lines[i].length-1)/2)*14));let width=v/max*(w-left-right);ctx.fillStyle='#11a99a';ctx.fillRect(left,y+steps[i]/2-12,width,18);ctx.fillStyle='#526177';ctx.textAlign='left';ctx.fillText(Number(v).toLocaleString('es-EC',{maximumFractionDigits:2}),left+width+5,y+steps[i]/2+1);y+=steps[i]});
 }
 const drawChatChartBeforeForecast=drawChatChart;
-drawChatChart=function(c,ch){if(ch.ranking)return drawGroupRanking(c,ch);if(ch.forecast&&['line','area'].includes(ch.type))return drawForecastSeries(c,ch);return drawChatChartBeforeForecast(c,ch)};
+function drawSemanticCartesian(c,ch){
+ const w=Number(c.dataset.renderWidth)||c.clientWidth||600,dpr=devicePixelRatio||1,labels=ch.labels||[],ds=ch.datasets||[],horizontal=ch.type==='bar'&&ch.orientation==='horizontal';
+ const valid=v=>v!==null&&v!==undefined&&v!==''&&Number.isFinite(Number(v));
+ const values=ds.flatMap(d=>d.values||[]).filter(valid).map(Number),low=Math.min(0,...values),high=Math.max(1,...values),range=high-low;
+ const fmt=v=>Number(v).toLocaleString('es-EC',{maximumFractionDigits:2});
+ let x=c.getContext('2d');x.font='10px Segoe UI';
+ const left=horizontal?Math.min(w*.48,260):Math.max(58,...[low,high,low+range/2].map(v=>x.measureText(fmt(v)).width+15));
+ const right=horizontal?55:18,plotWidth=w-left-right,step=plotWidth/Math.max(1,labels.length);
+ const wrapped=labels.map(l=>{const date=/^(\d{4})-(\d{2})$/.exec(String(l));if(date&&!horizontal&&Number(date[2])>=1&&Number(date[2])<=12)return [['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][Number(date[2])-1],date[1]];return chartExportLines(x,l,horizontal?left-16:Math.max(20,step-8))});
+ const bottom=horizontal?48:Math.max(60,...wrapped.map(a=>a.length*12+25));
+ const rowHeight=Math.max(34,ds.length*10+12,...wrapped.map(a=>a.length*12+12)),h=horizontal?Math.max(320,labels.length*rowHeight+70):300+bottom;
+ c.style.height=h+'px';c.width=w*dpr;c.height=h*dpr;x=c.getContext('2d');x.scale(dpr,dpr);x.font='10px Segoe UI';
+ const top=25,plotHeight=h-top-bottom,yy=v=>h-bottom-(v-low)/range*plotHeight,xx=v=>left+(v-low)/range*plotWidth,cx=i=>left+(i+.5)*step;
+ for(let i=0;i<=4;i++){const v=low+range*i/4;x.strokeStyle='#e1e7ed';x.lineWidth=1;x.beginPath();if(horizontal){x.moveTo(xx(v),top);x.lineTo(xx(v),h-bottom)}else{x.moveTo(left,yy(v));x.lineTo(w-right,yy(v))}x.stroke();x.fillStyle='#526177';x.textAlign=horizontal?'center':'right';x.fillText(fmt(v),horizontal?xx(v):left-8,horizontal?h-bottom+18:yy(v)+3)}
+ x.textAlign='left';x.fillStyle='#526177';x.fillText(['currency','moneda'].includes(ch.value_format)?'USD':['percent','porcentaje'].includes(ch.value_format)?'%':'Valor',left,13);
+ labels.forEach((l,i)=>{x.fillStyle='#526177';x.textAlign=horizontal?'right':'center';wrapped[i].forEach((line,j)=>x.fillText(line,horizontal?left-10:cx(i),horizontal?top+(i+.5)*plotHeight/labels.length+(j-(wrapped[i].length-1)/2)*12:h-bottom+18+j*12))});
+ ds.forEach((d,j)=>{const color=d.color||chartColor(ch,j);x.strokeStyle=color;x.fillStyle=color;x.lineWidth=2;
+  if(ch.type==='bar'){const slot=horizontal?plotHeight/Math.max(1,labels.length):step,bw=Math.min(22,slot/(ds.length+1));labels.forEach((_,i)=>{const v=d.values[i];if(!valid(v))return;if(horizontal){const y=top+i*slot+(slot-bw*ds.length)/2+j*bw;x.fillStyle=color;x.fillRect(Math.min(xx(0),xx(v)),y,Math.abs(xx(v)-xx(0)),Math.max(2,bw-2));x.fillStyle='#526177';x.textAlign='left';x.fillText(fmt(v),Math.min(w-right+5,xx(v)+5),y+bw-3)}else{const pos=left+i*step+(step-bw*ds.length)/2+j*bw;x.fillStyle=color;x.fillRect(pos,Math.min(yy(v),yy(0)),Math.max(2,bw-2),Math.abs(yy(v)-yy(0)))}});return}
+  // Separate paths at missing values: neither a zero nor interpolation is implied.
+  const segments=[];let segment=[];labels.forEach((_,i)=>{const v=d.values[i];if(valid(v))segment.push([cx(i),yy(Number(v))]);else if(segment.length){segments.push(segment);segment=[]}});if(segment.length)segments.push(segment);
+  segments.forEach(points=>{if(ch.type==='area'){x.globalAlpha=.12;x.beginPath();x.moveTo(points[0][0],yy(0));points.forEach(p=>x.lineTo(...p));x.lineTo(points[points.length-1][0],yy(0));x.closePath();x.fill();x.globalAlpha=1}x.beginPath();points.forEach((p,i)=>i?x.lineTo(...p):x.moveTo(...p));x.stroke();points.forEach(p=>{x.beginPath();x.arc(...p,3,0,Math.PI*2);x.fill()})});
+ });
+}
+drawChatChart=function(c,ch){if(ch.ranking)return drawGroupRanking(c,ch);if(ch.forecast&&['line','area'].includes(ch.type))return drawForecastSeries(c,ch);if(ch.semantic&&!ch.objective_visual&&!ch.forecast&&!ch.secondary_axis&&['line','area','bar'].includes(ch.type))return drawSemanticCartesian(c,ch);return drawChatChartBeforeForecast(c,ch)};
 const chartLegendBeforeForecast=chartLegend;
 chartLegend=function(ch){return chartLegendBeforeForecast(ch)+(ch.forecast&&['line','area'].includes(ch.type)?'<span><i style="background:#b8c9dc"></i>Banda de incertidumbre aproximada (95%, no validada como garantía)</span>':'')};
 
